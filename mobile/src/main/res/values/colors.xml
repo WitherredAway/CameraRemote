@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Material You Dark Camera Theme -->
+    <color name="md_theme_primary">#FFB4A9</color>
+    <color name="md_theme_onPrimary">#690100</color>
+    <color name="md_theme_primaryContainer">#930100</color>
+    <color name="md_theme_onPrimaryContainer">#FFDAD5</color>
+    <color name="md_theme_secondary">#E7BDB6</color>
+    <color name="md_theme_onSecondary">#442925</color>
+    <color name="md_theme_secondaryContainer">#5D3F3B</color>
+    <color name="md_theme_onSecondaryContainer">#FFDAD5</color>
+    <color name="md_theme_tertiary">#DECA68</color>
+    <color name="md_theme_onTertiary">#3A3000</color>
+    <color name="md_theme_error">#FFB4AB</color>
+    <color name="md_theme_onError">#690005</color>
+    <color name="md_theme_background">#1A1110</color>
+    <color name="md_theme_onBackground">#F1DFDC</color>
+    <color name="md_theme_surface">#1A1110</color>
+    <color name="md_theme_onSurface">#F1DFDC</color>
+    <color name="md_theme_surfaceVariant">#534341</color>
+    <color name="md_theme_onSurfaceVariant">#D8C2BE</color>
+    <color name="md_theme_outline">#A08C89</color>
+    <color name="md_theme_surfaceContainer">#271D1C</color>
+    <color name="md_theme_surfaceContainerHigh">#322826</color>
+    <color name="md_theme_surfaceContainerHighest">#3D3231</color>
+</resources>

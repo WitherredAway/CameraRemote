@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">CameraRemote</string>
+    <string name="tile_name">Camera Controls</string>
+    <string name="tile_description">Quick camera controls from your watch face</string>
+</resources>
