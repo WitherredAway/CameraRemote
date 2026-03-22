@@ -87,7 +87,7 @@
             android:outlineProvider="background"
             android:contentDescription="Switch Camera"
             android:translationX="0dp"
-            android:translationY="70dp" />
+            android:translationY="65dp" />
 
         <!-- Preview (blue-grey) at ~8 o'clock — between timer and camera -->
         <ImageButton
