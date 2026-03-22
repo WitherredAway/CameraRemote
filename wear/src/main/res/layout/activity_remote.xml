@@ -89,6 +89,23 @@
             android:translationX="0dp"
             android:translationY="70dp" />
 
+        <!-- Preview (blue-grey) below flip button -->
+        <ImageButton
+            android:id="@+id/btnPreview"
+            android:layout_width="28dp"
+            android:layout_height="28dp"
+            android:layout_gravity="center"
+            android:translationX="0dp"
+            android:translationY="100dp"
+            android:background="@drawable/bg_btn_preview"
+            android:src="@drawable/ic_preview"
+            android:tint="#000000"
+            android:scaleType="centerInside"
+            android:padding="5dp"
+            android:clipToOutline="true"
+            android:outlineProvider="background"
+            android:contentDescription="Preview" />
+
         <ImageButton
             android:id="@+id/btnVideo"
             android:layout_width="45dp"
@@ -134,5 +151,61 @@
             android:clipToOutline="true"
             android:outlineProvider="background"
             android:contentDescription="Capture" />
+
+        <!-- Preview overlay (hidden by default) -->
+        <FrameLayout
+            android:id="@+id/previewOverlay"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:background="#CC000000"
+            android:visibility="gone"
+            android:clickable="true"
+            android:focusable="true">
+
+            <ImageView
+                android:id="@+id/previewImage"
+                android:layout_width="140dp"
+                android:layout_height="140dp"
+                android:layout_gravity="center"
+                android:layout_marginBottom="20dp"
+                android:scaleType="centerCrop"
+                android:contentDescription="Preview photo" />
+
+            <LinearLayout
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="bottom|center_horizontal"
+                android:layout_marginBottom="20dp"
+                android:orientation="horizontal">
+
+                <ImageButton
+                    android:id="@+id/btnPreviewDelete"
+                    android:layout_width="40dp"
+                    android:layout_height="40dp"
+                    android:layout_marginEnd="16dp"
+                    android:background="@drawable/bg_btn_timer"
+                    android:src="@android:drawable/ic_menu_delete"
+                    android:tint="#000000"
+                    android:scaleType="centerInside"
+                    android:padding="8dp"
+                    android:clipToOutline="true"
+                    android:outlineProvider="background"
+                    android:contentDescription="Delete" />
+
+                <ImageButton
+                    android:id="@+id/btnPreviewSave"
+                    android:layout_width="40dp"
+                    android:layout_height="40dp"
+                    android:background="@drawable/bg_btn_camera"
+                    android:src="@android:drawable/ic_menu_save"
+                    android:tint="#000000"
+                    android:scaleType="centerInside"
+                    android:padding="8dp"
+                    android:clipToOutline="true"
+                    android:outlineProvider="background"
+                    android:contentDescription="Save" />
+
+            </LinearLayout>
+        </FrameLayout>
 
 </FrameLayout>

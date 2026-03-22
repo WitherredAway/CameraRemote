@@ -1,5 +1,6 @@
 package com.cameraremote.wear
 
+import android.graphics.BitmapFactory
 import android.graphics.Color
 import android.os.Build
 import android.os.Bundle
@@ -11,6 +12,7 @@ import android.os.Vibrator
 import android.os.VibratorManager
 import android.util.Log
 import android.view.MotionEvent
+import android.view.View
 import android.widget.ImageButton
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.InputDeviceCompat
@@ -52,6 +54,7 @@ class RemoteActivity : AppCompatActivity(), MessageClient.OnMessageReceivedListe
     private var hapticDurationMs = DEFAULT_HAPTIC_DURATION_MS.toLong()
     private var vibrateOnCountdown = true
     private var captureCount = 0
+    private var lastPreviewUri: String? = null
     private val heartbeatHandler = Handler(Looper.getMainLooper())
     private val heartbeatRunnable = object : Runnable {
         override fun run() {
@@ -140,6 +143,27 @@ class RemoteActivity : AppCompatActivity(), MessageClient.OnMessageReceivedListe
                 sendCommand(command)
             }
             Log.d(TAG, "Button bound: $label -> ${button.id}")
+        }
+
+        // Preview button
+        binding.btnPreview.setOnClickListener {
+            vibrate()
+            sendCommand("preview_capture")
+        }
+
+        // Preview overlay buttons
+        binding.btnPreviewSave.setOnClickListener {
+            vibrate()
+            binding.previewOverlay.visibility = View.GONE
+            binding.tvStatus.text = "Saved"
+        }
+        binding.btnPreviewDelete.setOnClickListener {
+            vibrate()
+            lastPreviewUri?.let { uri ->
+                sendCommand("delete_preview:$uri")
+            }
+            binding.previewOverlay.visibility = View.GONE
+            binding.tvStatus.text = "Deleted"
         }
 
         // Shutter: tap to capture, long-press for burst mode
@@ -360,6 +384,12 @@ class RemoteActivity : AppCompatActivity(), MessageClient.OnMessageReceivedListe
             "gallery_opened" -> "Gallery"
             "gallery_failed" -> "Gallery N/A"
             "camera_detected" -> "Camera ready"
+            "preview_capturing" -> "Capturing\u2026"
+            "preview_ready" -> "Preview"
+            "preview_failed" -> "Preview N/A"
+            "preview_deleted" -> "Deleted"
+            "preview_delete_failed" -> "Delete failed"
+            "preview_delete_denied" -> "Delete denied"
             else -> {
                 // Handle dynamic statuses like "burst_5", "timer_3s"
                 when {
@@ -379,13 +409,32 @@ class RemoteActivity : AppCompatActivity(), MessageClient.OnMessageReceivedListe
 
     override fun onDataChanged(dataEvents: DataEventBuffer) {
         for (event in dataEvents) {
-            if (event.type == DataEvent.TYPE_CHANGED && event.dataItem.uri.path == "/camera_remote/settings") {
-                val dataMap = DataMapItem.fromDataItem(event.dataItem).dataMap
-                hapticDurationMs = dataMap.getInt("haptic_duration_ms", DEFAULT_HAPTIC_DURATION_MS).toLong()
-                timerSeconds = dataMap.getInt("default_timer_seconds", DEFAULT_TIMER_SECONDS)
-                vibrateOnCountdown = dataMap.getBoolean("vibrate_on_countdown", true)
-                saveSettingsLocally()
-                Log.d(TAG, "Settings updated: haptic=${hapticDurationMs}ms, timer=${timerSeconds}s, vibrateCountdown=$vibrateOnCountdown")
+            if (event.type == DataEvent.TYPE_CHANGED) {
+                when (event.dataItem.uri.path) {
+                    "/camera_remote/settings" -> {
+                        val dataMap = DataMapItem.fromDataItem(event.dataItem).dataMap
+                        hapticDurationMs = dataMap.getInt("haptic_duration_ms", DEFAULT_HAPTIC_DURATION_MS).toLong()
+                        timerSeconds = dataMap.getInt("default_timer_seconds", DEFAULT_TIMER_SECONDS)
+                        vibrateOnCountdown = dataMap.getBoolean("vibrate_on_countdown", true)
+                        saveSettingsLocally()
+                        Log.d(TAG, "Settings updated: haptic=${hapticDurationMs}ms, timer=${timerSeconds}s, vibrateCountdown=$vibrateOnCountdown")
+                    }
+                    "/camera_remote/preview" -> {
+                        val dataMap = DataMapItem.fromDataItem(event.dataItem).dataMap
+                        val imageBytes = dataMap.getByteArray("image")
+                        val uri = dataMap.getString("uri")
+                        if (imageBytes != null && imageBytes.isNotEmpty()) {
+                            lastPreviewUri = uri
+                            val bitmap = BitmapFactory.decodeByteArray(imageBytes, 0, imageBytes.size)
+                            runOnUiThread {
+                                binding.previewImage.setImageBitmap(bitmap)
+                                binding.previewOverlay.visibility = View.VISIBLE
+                                binding.tvStatus.text = "Preview"
+                            }
+                            Log.d(TAG, "Preview received: ${imageBytes.size} bytes, uri=$uri")
+                        }
+                    }
+                }
             }
         }
     }

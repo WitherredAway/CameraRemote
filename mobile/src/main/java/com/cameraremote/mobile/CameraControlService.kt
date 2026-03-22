@@ -2,9 +2,13 @@ package com.cameraremote.mobile
 
 import android.accessibilityservice.AccessibilityService
 import android.accessibilityservice.GestureDescription
+import android.content.ContentUris
 import android.content.Context
 import android.content.Intent
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
 import android.graphics.Path
+import android.net.Uri
 import android.os.Handler
 import android.os.Looper
 import android.provider.MediaStore
@@ -19,7 +23,9 @@ import android.os.Build
 import android.view.WindowManager
 import androidx.core.app.NotificationCompat
 import com.google.android.gms.wearable.MessageClient
+import com.google.android.gms.wearable.PutDataMapRequest
 import com.google.android.gms.wearable.Wearable
+import java.io.ByteArrayOutputStream
 
 class CameraControlService : AccessibilityService() {
 
@@ -119,6 +125,13 @@ class CameraControlService : AccessibilityService() {
         Log.d(TAG, "handleCommand: $command")
 
         // Parse zoom commands with steps: "zoom_in:3" or "zoom_out:2"
+        // Handle delete_preview with URI parameter
+        if (command.startsWith("delete_preview:")) {
+            val uriStr = command.removePrefix("delete_preview:")
+            deletePreview(uriStr)
+            return
+        }
+
         if (command.startsWith("zoom_in:") || command.startsWith("zoom_out:")) {
             val parts = command.split(":")
             val zoomIn = command.startsWith("zoom_in")
@@ -138,6 +151,7 @@ class CameraControlService : AccessibilityService() {
             "open_gallery" -> openGallery()
             "burst_capture" -> requireCameraOpen { burstCapture() }
             "capture_timer" -> captureWithTimer()
+            "preview_capture" -> requireCameraOpen { previewCapture() }
             else -> {
                 Log.w(TAG, "Unknown command: $command")
                 sendStatusToWatch("unknown_command")
@@ -827,6 +841,89 @@ class CameraControlService : AccessibilityService() {
                 sendStatusToWatch("capture_failed")
             }
         }, null)
+    }
+
+    private fun previewCapture() {
+        doCapture()
+        sendStatusToWatch("preview_capturing")
+        // Wait for photo to save, then read and send preview
+        handler.postDelayed({ sendPreviewToWatch() }, 2500L)
+    }
+
+    private fun sendPreviewToWatch() {
+        try {
+            val projection = arrayOf(MediaStore.Images.Media._ID)
+            val sortOrder = "${MediaStore.Images.Media.DATE_ADDED} DESC"
+            val cursor = contentResolver.query(
+                MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
+                projection, null, null, sortOrder
+            )
+            cursor?.use {
+                if (it.moveToFirst()) {
+                    val id = it.getLong(it.getColumnIndexOrThrow(MediaStore.Images.Media._ID))
+                    val uri = ContentUris.withAppendedId(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, id)
+
+                    val inputStream = contentResolver.openInputStream(uri)
+                    val options = BitmapFactory.Options().apply { inSampleSize = 4 }
+                    val bitmap = BitmapFactory.decodeStream(inputStream, null, options)
+                    inputStream?.close()
+
+                    if (bitmap != null) {
+                        val maxDim = maxOf(bitmap.width, bitmap.height)
+                        val scale = 300f / maxDim
+                        val resized = Bitmap.createScaledBitmap(
+                            bitmap,
+                            (bitmap.width * scale).toInt(),
+                            (bitmap.height * scale).toInt(),
+                            true
+                        )
+
+                        val baos = ByteArrayOutputStream()
+                        resized.compress(Bitmap.CompressFormat.JPEG, 70, baos)
+                        val imageBytes = baos.toByteArray()
+
+                        val request = PutDataMapRequest.create("/camera_remote/preview").apply {
+                            dataMap.putByteArray("image", imageBytes)
+                            dataMap.putString("uri", uri.toString())
+                            dataMap.putLong("timestamp", System.currentTimeMillis())
+                        }.asPutDataRequest().setUrgent()
+                        Wearable.getDataClient(this).putDataItem(request)
+
+                        sendStatusToWatch("preview_ready")
+                        bitmap.recycle()
+                        resized.recycle()
+                        Log.d(TAG, "Preview sent to watch: ${imageBytes.size} bytes")
+                    } else {
+                        sendStatusToWatch("preview_failed")
+                    }
+                } else {
+                    sendStatusToWatch("preview_failed")
+                }
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to send preview", e)
+            sendStatusToWatch("preview_failed")
+        }
+    }
+
+    private fun deletePreview(uriStr: String) {
+        try {
+            val uri = Uri.parse(uriStr)
+            val deleted = contentResolver.delete(uri, null, null)
+            if (deleted > 0) {
+                sendStatusToWatch("preview_deleted")
+                Log.d(TAG, "Preview deleted: $uriStr")
+            } else {
+                sendStatusToWatch("preview_delete_failed")
+                Log.w(TAG, "Failed to delete preview (0 rows): $uriStr")
+            }
+        } catch (e: SecurityException) {
+            Log.e(TAG, "Permission denied to delete preview", e)
+            sendStatusToWatch("preview_delete_denied")
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to delete preview", e)
+            sendStatusToWatch("preview_delete_failed")
+        }
     }
 
     private fun openGallery() {
