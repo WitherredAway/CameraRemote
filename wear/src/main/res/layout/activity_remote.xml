@@ -1,0 +1,135 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.wear.widget.BoxInsetLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="#FF000000"
+    android:padding="2dp">
+
+    <ScrollView
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        app:boxedEdges="all">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="center_horizontal"
+            android:orientation="vertical"
+            android:paddingTop="8dp"
+            android:paddingBottom="16dp">
+
+            <!-- Connection status -->
+            <TextView
+                android:id="@+id/tvConnection"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Connecting..."
+                android:textColor="#AAAAAA"
+                android:textSize="11sp" />
+
+            <!-- Status message -->
+            <TextView
+                android:id="@+id/tvStatus"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="2dp"
+                android:text="Ready"
+                android:textColor="#FFFFFF"
+                android:textSize="12sp"
+                android:textStyle="bold" />
+
+            <!-- Open Camera Button -->
+            <Button
+                android:id="@+id/btnOpenCamera"
+                android:layout_width="140dp"
+                android:layout_height="36dp"
+                android:layout_marginTop="6dp"
+                android:background="@drawable/btn_primary_pill"
+                android:text="OPEN CAMERA"
+                android:textColor="#FFFFFF"
+                android:textSize="11sp"
+                android:textStyle="bold" />
+
+            <!-- Capture Button (large, red) -->
+            <Button
+                android:id="@+id/btnCapture"
+                android:layout_width="140dp"
+                android:layout_height="44dp"
+                android:layout_marginTop="6dp"
+                android:background="@drawable/btn_capture_pill"
+                android:text="CAPTURE"
+                android:textColor="#FFFFFF"
+                android:textSize="13sp"
+                android:textStyle="bold" />
+
+            <!-- Row: Timer | Flash -->
+            <LinearLayout
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="6dp"
+                android:gravity="center"
+                android:orientation="horizontal">
+
+                <Button
+                    android:id="@+id/btnTimer"
+                    android:layout_width="66dp"
+                    android:layout_height="34dp"
+                    android:background="@drawable/btn_outline_pill"
+                    android:text="3s"
+                    android:textColor="#CCCCCC"
+                    android:textSize="11sp"
+                    android:textStyle="bold" />
+
+                <View
+                    android:layout_width="8dp"
+                    android:layout_height="1dp" />
+
+                <Button
+                    android:id="@+id/btnFlash"
+                    android:layout_width="66dp"
+                    android:layout_height="34dp"
+                    android:background="@drawable/btn_outline_pill"
+                    android:text="FLASH"
+                    android:textColor="#CCCCCC"
+                    android:textSize="11sp"
+                    android:textStyle="bold" />
+            </LinearLayout>
+
+            <!-- Row: Switch | Video -->
+            <LinearLayout
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="6dp"
+                android:gravity="center"
+                android:orientation="horizontal">
+
+                <Button
+                    android:id="@+id/btnSwitch"
+                    android:layout_width="66dp"
+                    android:layout_height="34dp"
+                    android:background="@drawable/btn_outline_pill"
+                    android:text="FLIP"
+                    android:textColor="#CCCCCC"
+                    android:textSize="11sp"
+                    android:textStyle="bold" />
+
+                <View
+                    android:layout_width="8dp"
+                    android:layout_height="1dp" />
+
+                <Button
+                    android:id="@+id/btnVideo"
+                    android:layout_width="66dp"
+                    android:layout_height="34dp"
+                    android:background="@drawable/btn_record_pill"
+                    android:text="VIDEO"
+                    android:textColor="#FFFFFF"
+                    android:textSize="11sp"
+                    android:textStyle="bold" />
+            </LinearLayout>
+
+        </LinearLayout>
+    </ScrollView>
+
+</androidx.wear.widget.BoxInsetLayout>
