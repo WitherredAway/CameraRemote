@@ -83,11 +83,47 @@ class CameraControlService : AccessibilityService() {
         when (command) {
             "open_camera" -> openCamera()
             "capture" -> capture()
-            "switch_camera" -> switchCamera()
-            "toggle_flash" -> toggleFlash()
             "open_video" -> openVideoCamera()
-            "zoom_in" -> zoom(zoomIn = true)
-            "zoom_out" -> zoom(zoomIn = false)
+            "switch_camera" -> {
+                val root = rootInActiveWindow
+                if (root != null && isCameraAppInForeground(root)) {
+                    root.recycle()
+                    switchCamera()
+                } else {
+                    root?.recycle()
+                    sendStatusToWatch("camera_not_open")
+                }
+            }
+            "toggle_flash" -> {
+                val root = rootInActiveWindow
+                if (root != null && isCameraAppInForeground(root)) {
+                    root.recycle()
+                    toggleFlash()
+                } else {
+                    root?.recycle()
+                    sendStatusToWatch("camera_not_open")
+                }
+            }
+            "zoom_in" -> {
+                val root = rootInActiveWindow
+                if (root != null && isCameraAppInForeground(root)) {
+                    root.recycle()
+                    zoom(zoomIn = true)
+                } else {
+                    root?.recycle()
+                    sendStatusToWatch("camera_not_open")
+                }
+            }
+            "zoom_out" -> {
+                val root = rootInActiveWindow
+                if (root != null && isCameraAppInForeground(root)) {
+                    root.recycle()
+                    zoom(zoomIn = false)
+                } else {
+                    root?.recycle()
+                    sendStatusToWatch("camera_not_open")
+                }
+            }
             else -> {
                 Log.w(TAG, "Unknown command: $command")
                 sendStatusToWatch("unknown_command")
@@ -98,7 +134,7 @@ class CameraControlService : AccessibilityService() {
     private fun openCamera() {
         try {
             val intent = Intent(MediaStore.INTENT_ACTION_STILL_IMAGE_CAMERA).apply {
-                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
             }
             startActivity(intent)
             sendStatusToWatch("camera_opened")
@@ -107,7 +143,7 @@ class CameraControlService : AccessibilityService() {
             // Fallback: try generic camera intent
             try {
                 val fallback = Intent(MediaStore.ACTION_IMAGE_CAPTURE).apply {
-                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
                 }
                 startActivity(fallback)
                 sendStatusToWatch("camera_opened")
@@ -133,16 +169,16 @@ class CameraControlService : AccessibilityService() {
 
     /**
      * Capture: tap the shutter/record button in the current camera app.
-     * If no camera app is detected, open camera first then capture.
-     * Does NOT re-launch camera if already in a camera app (preserves video mode).
+     * If no camera app is detected, open camera in PHOTO mode first then capture.
+     * Does NOT re-launch camera if already in a camera app (preserves current mode).
      */
     private fun capture() {
         Log.d(TAG, "capture: attempting to find and click shutter/record")
         val root = rootInActiveWindow
         if (root == null) {
-            Log.d(TAG, "capture: no active window, opening camera first")
+            Log.d(TAG, "capture: no active window, opening camera in photo mode")
             if (settings.isAutoOpenCameraEnabled()) {
-                openCamera()
+                openCamera() // Uses STILL_IMAGE_CAMERA intent = photo mode
                 handler.postDelayed({ captureAfterOpen() }, settings.getCameraLaunchDelayMs().toLong())
             } else {
                 sendStatusToWatch("no_camera_app")
@@ -155,9 +191,9 @@ class CameraControlService : AccessibilityService() {
         root.recycle()
 
         if (!isCameraApp) {
-            Log.d(TAG, "capture: not in camera app, opening camera first")
+            Log.d(TAG, "capture: not in camera app, opening camera in photo mode")
             if (settings.isAutoOpenCameraEnabled()) {
-                openCamera()
+                openCamera() // Uses STILL_IMAGE_CAMERA intent = photo mode
                 handler.postDelayed({ captureAfterOpen() }, settings.getCameraLaunchDelayMs().toLong())
             } else {
                 sendStatusToWatch("no_camera_app")
@@ -254,7 +290,7 @@ class CameraControlService : AccessibilityService() {
         val centerY = metrics.heightPixels / 2f
         val offset = metrics.widthPixels / 8f  // How far fingers move
 
-        val duration = 200L
+        val duration = 400L
         if (zoomIn) {
             // Spread: fingers move outward from center
             val path1 = Path().apply {

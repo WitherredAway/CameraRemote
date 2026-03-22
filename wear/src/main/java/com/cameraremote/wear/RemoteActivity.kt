@@ -1,9 +1,6 @@
 package com.cameraremote.wear
 
-import android.content.res.ColorStateList
 import android.graphics.Color
-import android.graphics.drawable.GradientDrawable
-import android.graphics.drawable.RippleDrawable
 import android.os.Build
 import android.os.Bundle
 import android.os.CountDownTimer
@@ -20,13 +17,13 @@ import androidx.core.view.MotionEventCompat
 import androidx.core.view.ViewConfigurationCompat
 import com.cameraremote.wear.databinding.ActivityRemoteBinding
 import com.google.android.gms.wearable.DataClient
+import com.google.android.material.color.DynamicColors
 import com.google.android.gms.wearable.DataEvent
 import com.google.android.gms.wearable.DataEventBuffer
 import com.google.android.gms.wearable.DataMapItem
 import com.google.android.gms.wearable.MessageClient
 import com.google.android.gms.wearable.MessageEvent
 import com.google.android.gms.wearable.Wearable
-import com.google.android.material.color.DynamicColors
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -51,20 +48,18 @@ class RemoteActivity : AppCompatActivity(), MessageClient.OnMessageReceivedListe
     private var isCountdownActive = false
     private var hapticDurationMs = DEFAULT_HAPTIC_DURATION_MS.toLong()
     private var vibrateOnCountdown = true
+    private var bezelRotationAccumulator = 0f
+    private var lastBezelZoomTime = 0L
 
     override fun onCreate(savedInstanceState: Bundle?) {
-        // Apply DynamicColors so we can extract the user's Material You palette
         DynamicColors.applyToActivityIfAvailable(this)
         super.onCreate(savedInstanceState)
         Log.d(TAG, "onCreate started")
         binding = ActivityRemoteBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
-        // Force black background (DynamicColors may override it)
-        binding.root.setBackgroundColor(Color.BLACK)
-
-        // Apply Material You colors to buttons
-        applyDynamicButtonColors()
+        // Apply Material You dynamic color to background only
+        applyDynamicBackground()
 
         vibrator = try {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
@@ -323,72 +318,43 @@ class RemoteActivity : AppCompatActivity(), MessageClient.OnMessageReceivedListe
         }
     }
 
-    /**
-     * Apply Material You dynamic colors to button backgrounds.
-     * Uses the device's wallpaper-derived color palette.
-     */
-    private fun applyDynamicButtonColors() {
+    private fun applyDynamicBackground() {
         try {
             val typedArray = obtainStyledAttributes(intArrayOf(
-                com.google.android.material.R.attr.colorPrimary,
-                com.google.android.material.R.attr.colorSecondary,
-                com.google.android.material.R.attr.colorTertiary,
-                com.google.android.material.R.attr.colorPrimaryContainer,
-                com.google.android.material.R.attr.colorSecondaryContainer,
-                com.google.android.material.R.attr.colorTertiaryContainer
+                com.google.android.material.R.attr.colorSurface
             ))
-
-            val primary = typedArray.getColor(0, Color.parseColor("#B3E5FC"))
-            val secondary = typedArray.getColor(1, Color.parseColor("#CE93D8"))
-            val tertiary = typedArray.getColor(2, Color.parseColor("#FFCDD2"))
-            val primaryContainer = typedArray.getColor(3, Color.parseColor("#D0BCFF"))
-            val secondaryContainer = typedArray.getColor(4, Color.parseColor("#E0E0E0"))
-            val tertiaryContainer = typedArray.getColor(5, Color.parseColor("#FFF3B0"))
+            val surfaceColor = typedArray.getColor(0, Color.BLACK)
             typedArray.recycle()
-
-            setButtonColor(binding.btnOpenCamera, primaryContainer)
-            setButtonColor(binding.btnVideo, secondary)
-            setButtonColor(binding.btnFlash, tertiaryContainer)
-            setButtonColor(binding.btnTimer, tertiary)
-            setButtonColor(binding.btnSwitch, secondaryContainer)
-            // Shutter keeps its ring drawable — don't override it
-
-            binding.tvStatus.setTextColor(primary)
-
-            Log.d(TAG, "Applied Material You dynamic colors")
+            binding.root.setBackgroundColor(surfaceColor)
+            Log.d(TAG, "Applied Material You dynamic background")
         } catch (e: Exception) {
-            Log.w(TAG, "Failed to apply dynamic colors, using defaults", e)
+            Log.w(TAG, "Failed to apply dynamic background, using black", e)
+            binding.root.setBackgroundColor(Color.BLACK)
         }
-    }
-
-    private fun setButtonColor(button: ImageButton, color: Int) {
-        val oval = GradientDrawable().apply {
-            shape = GradientDrawable.OVAL
-            setColor(color)
-        }
-        val ripple = RippleDrawable(
-            ColorStateList.valueOf(Color.parseColor("#30000000")),
-            oval,
-            null
-        )
-        button.background = ripple
     }
 
     override fun onGenericMotionEvent(event: MotionEvent): Boolean {
         if (event.action == MotionEvent.ACTION_SCROLL &&
             event.isFromSource(InputDeviceCompat.SOURCE_ROTARY_ENCODER)) {
-            val delta = -event.getAxisValue(MotionEventCompat.AXIS_SCROLL) *
-                ViewConfigurationCompat.getScaledVerticalScrollFactor(
-                    ViewConfiguration.get(this), this)
-            // delta > 0 = clockwise = zoom in, delta < 0 = counter-clockwise = zoom out
-            if (delta > 0) {
-                Log.d(TAG, "Bezel: zoom in")
-                sendCommand("zoom_in")
-            } else {
-                Log.d(TAG, "Bezel: zoom out")
-                sendCommand("zoom_out")
+            val delta = -event.getAxisValue(MotionEventCompat.AXIS_SCROLL)
+            bezelRotationAccumulator += delta
+
+            val now = System.currentTimeMillis()
+            val threshold = 1.0f
+            val debounceMs = 150L
+
+            if (Math.abs(bezelRotationAccumulator) >= threshold && (now - lastBezelZoomTime) >= debounceMs) {
+                if (bezelRotationAccumulator > 0) {
+                    Log.d(TAG, "Bezel: zoom in (accumulated=${bezelRotationAccumulator})")
+                    sendCommand("zoom_in")
+                } else {
+                    Log.d(TAG, "Bezel: zoom out (accumulated=${bezelRotationAccumulator})")
+                    sendCommand("zoom_out")
+                }
+                bezelRotationAccumulator = 0f
+                lastBezelZoomTime = now
+                vibrate()
             }
-            vibrate()
             return true
         }
         return super.onGenericMotionEvent(event)
