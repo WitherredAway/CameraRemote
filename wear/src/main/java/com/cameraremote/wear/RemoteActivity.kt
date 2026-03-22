@@ -342,26 +342,15 @@ class RemoteActivity : AppCompatActivity(), MessageClient.OnMessageReceivedListe
         if (event.action == MotionEvent.ACTION_SCROLL &&
             event.isFromSource(InputDeviceCompat.SOURCE_ROTARY_ENCODER)) {
             val delta = -event.getAxisValue(MotionEventCompat.AXIS_SCROLL)
-            bezelRotationAccumulator += delta
 
-            val now = System.currentTimeMillis()
-            val debounceMs = 150L
-
-            if (bezelRotationAccumulator != 0f && (now - lastBezelZoomTime) >= debounceMs) {
-                // Send accumulated amount so phone can scale the gesture proportionally
-                val amount = bezelRotationAccumulator
-                val steps = Math.min(Math.abs(amount).toInt().coerceAtLeast(1), 5)
-                if (amount > 0) {
-                    Log.d(TAG, "Bezel: zoom in (amount=$amount, steps=$steps)")
-                    sendCommand("zoom_in:$steps")
-                } else {
-                    Log.d(TAG, "Bezel: zoom out (amount=$amount, steps=$steps)")
-                    sendCommand("zoom_out:$steps")
-                }
-                bezelRotationAccumulator = 0f
-                lastBezelZoomTime = now
-                vibrate()
+            // Send every rotation tick immediately for smooth, responsive zoom
+            // Each tick is 1 step; fast spinning sends many ticks in rapid succession
+            if (delta > 0) {
+                sendCommand("zoom_in:1")
+            } else if (delta < 0) {
+                sendCommand("zoom_out:1")
             }
+            vibrate()
             return true
         }
         return super.onGenericMotionEvent(event)

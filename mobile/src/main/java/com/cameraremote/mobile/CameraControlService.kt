@@ -392,7 +392,7 @@ class CameraControlService : AccessibilityService() {
         val baseOffset = metrics.widthPixels / 10f
         val offset = baseOffset * steps.coerceIn(1, 5)
 
-        val duration = 300L
+        val duration = 150L
         Log.d(TAG, "zoom: zoomIn=$zoomIn steps=$steps offset=$offset")
         if (zoomIn) {
             // Spread: fingers move outward from center
