@@ -4,17 +4,17 @@ import android.graphics.Color
 import android.os.Build
 import android.os.Bundle
 import android.os.CountDownTimer
+import android.os.Handler
+import android.os.Looper
 import android.os.VibrationEffect
 import android.os.Vibrator
 import android.os.VibratorManager
 import android.util.Log
 import android.view.MotionEvent
-import android.view.ViewConfiguration
 import android.widget.ImageButton
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.InputDeviceCompat
 import androidx.core.view.MotionEventCompat
-import androidx.core.view.ViewConfigurationCompat
 import com.cameraremote.wear.databinding.ActivityRemoteBinding
 import com.google.android.gms.wearable.DataClient
 import com.google.android.material.color.DynamicColors
@@ -26,7 +26,9 @@ import com.google.android.gms.wearable.MessageEvent
 import com.google.android.gms.wearable.Wearable
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
 
@@ -40,7 +42,8 @@ class RemoteActivity : AppCompatActivity(), MessageClient.OnMessageReceivedListe
     }
 
     private lateinit var binding: ActivityRemoteBinding
-    private val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
+    private val scopeJob = SupervisorJob()
+    private val scope = CoroutineScope(Dispatchers.IO + scopeJob)
     private var vibrator: Vibrator? = null
     private var messageClient: MessageClient? = null
     private var timerSeconds = DEFAULT_TIMER_SECONDS
@@ -48,8 +51,14 @@ class RemoteActivity : AppCompatActivity(), MessageClient.OnMessageReceivedListe
     private var isCountdownActive = false
     private var hapticDurationMs = DEFAULT_HAPTIC_DURATION_MS.toLong()
     private var vibrateOnCountdown = true
-    private var bezelRotationAccumulator = 0f
-    private var lastBezelZoomTime = 0L
+    private var captureCount = 0
+    private val heartbeatHandler = Handler(Looper.getMainLooper())
+    private val heartbeatRunnable = object : Runnable {
+        override fun run() {
+            checkConnection()
+            heartbeatHandler.postDelayed(this, 30_000L)
+        }
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         DynamicColors.applyToActivityIfAvailable(this)
@@ -88,6 +97,13 @@ class RemoteActivity : AppCompatActivity(), MessageClient.OnMessageReceivedListe
     }
 
     private fun loadSyncedSettings() {
+        // Load from local cache first
+        val prefs = getSharedPreferences("watch_settings", MODE_PRIVATE)
+        hapticDurationMs = prefs.getInt("haptic_duration_ms", DEFAULT_HAPTIC_DURATION_MS).toLong()
+        timerSeconds = prefs.getInt("default_timer_seconds", DEFAULT_TIMER_SECONDS)
+        vibrateOnCountdown = prefs.getBoolean("vibrate_on_countdown", true)
+
+        // Then try to load latest from DataClient
         try {
             Wearable.getDataClient(this).getDataItems()
                 .addOnSuccessListener { dataItems ->
@@ -97,6 +113,7 @@ class RemoteActivity : AppCompatActivity(), MessageClient.OnMessageReceivedListe
                             hapticDurationMs = dataMap.getInt("haptic_duration_ms", DEFAULT_HAPTIC_DURATION_MS).toLong()
                             timerSeconds = dataMap.getInt("default_timer_seconds", DEFAULT_TIMER_SECONDS)
                             vibrateOnCountdown = dataMap.getBoolean("vibrate_on_countdown", true)
+                            saveSettingsLocally()
                             Log.d(TAG, "Loaded settings: haptic=${hapticDurationMs}ms, timer=${timerSeconds}s, vibrateCountdown=$vibrateOnCountdown")
                         }
                     }
@@ -105,6 +122,14 @@ class RemoteActivity : AppCompatActivity(), MessageClient.OnMessageReceivedListe
         } catch (e: Exception) {
             Log.w(TAG, "Failed to load synced settings", e)
         }
+    }
+
+    private fun saveSettingsLocally() {
+        getSharedPreferences("watch_settings", MODE_PRIVATE).edit()
+            .putInt("haptic_duration_ms", hapticDurationMs.toInt())
+            .putInt("default_timer_seconds", timerSeconds)
+            .putBoolean("vibrate_on_countdown", vibrateOnCountdown)
+            .apply()
     }
 
     private fun setupButtons() {
@@ -117,11 +142,21 @@ class RemoteActivity : AppCompatActivity(), MessageClient.OnMessageReceivedListe
             Log.d(TAG, "Button bound: $label -> ${button.id}")
         }
 
-        // Shutter: just captures in whatever mode camera is in
+        // Shutter: tap to capture, long-press for burst mode
         bindButton(binding.btnCapture, "capture", "Capture")
+        binding.btnCapture.setOnLongClickListener {
+            vibrate()
+            sendCommand("burst_capture")
+            true
+        }
 
-        // Open camera / photo mode
+        // Open camera / photo mode, long-press for gallery
         bindButton(binding.btnOpenCamera, "open_camera", "Camera")
+        binding.btnOpenCamera.setOnLongClickListener {
+            vibrate()
+            sendCommand("open_gallery")
+            true
+        }
 
         // Flash toggle on/off
         bindButton(binding.btnFlash, "toggle_flash", "Flash")
@@ -195,17 +230,26 @@ class RemoteActivity : AppCompatActivity(), MessageClient.OnMessageReceivedListe
             Log.e(TAG, "Failed to add listeners", e)
         }
         checkConnection()
+        heartbeatHandler.postDelayed(heartbeatRunnable, 30_000L)
     }
 
     override fun onPause() {
         super.onPause()
         Log.d(TAG, "onPause")
+        heartbeatHandler.removeCallbacks(heartbeatRunnable)
         try {
             messageClient?.removeListener(this)
             Wearable.getDataClient(this).removeListener(this)
         } catch (e: Exception) {
             Log.e(TAG, "Failed to remove listeners", e)
         }
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        heartbeatHandler.removeCallbacks(heartbeatRunnable)
+        countdownTimer?.cancel()
+        scopeJob.cancel()
     }
 
     private fun checkConnection() {
@@ -281,8 +325,14 @@ class RemoteActivity : AppCompatActivity(), MessageClient.OnMessageReceivedListe
         if (messageEvent.path == "/camera_remote/status") {
             val status = String(messageEvent.data)
             Log.d(TAG, "Status received from phone: $status")
+            if (status == "captured") captureCount++
             runOnUiThread {
-                binding.tvStatus.text = formatStatus(status)
+                val display = if (status == "captured" && captureCount > 1) {
+                    "${formatStatus(status)} ($captureCount)"
+                } else {
+                    formatStatus(status)
+                }
+                binding.tvStatus.text = display
                 vibrate()
             }
         }
@@ -307,7 +357,23 @@ class RemoteActivity : AppCompatActivity(), MessageClient.OnMessageReceivedListe
             "shutter_not_found" -> "Shutter N/A"
             "unknown_command" -> "Unknown command"
             "service_not_enabled" -> "Enable service!"
-            else -> status.replace("_", " ").replaceFirstChar { it.uppercase() }
+            "gallery_opened" -> "Gallery"
+            "gallery_failed" -> "Gallery N/A"
+            "camera_detected" -> "Camera ready"
+            else -> {
+                // Handle dynamic statuses like "burst_5", "timer_3s"
+                when {
+                    status.startsWith("burst_") -> {
+                        val count = status.removePrefix("burst_").toIntOrNull() ?: 0
+                        "Burst $count\u00D7"
+                    }
+                    status.startsWith("timer_") -> {
+                        val sec = status.removePrefix("timer_").removeSuffix("s")
+                        "Timer $sec\u2026"
+                    }
+                    else -> status.replace("_", " ").replaceFirstChar { it.uppercase() }
+                }
+            }
         }
     }
 
@@ -318,6 +384,7 @@ class RemoteActivity : AppCompatActivity(), MessageClient.OnMessageReceivedListe
                 hapticDurationMs = dataMap.getInt("haptic_duration_ms", DEFAULT_HAPTIC_DURATION_MS).toLong()
                 timerSeconds = dataMap.getInt("default_timer_seconds", DEFAULT_TIMER_SECONDS)
                 vibrateOnCountdown = dataMap.getBoolean("vibrate_on_countdown", true)
+                saveSettingsLocally()
                 Log.d(TAG, "Settings updated: haptic=${hapticDurationMs}ms, timer=${timerSeconds}s, vibrateCountdown=$vibrateOnCountdown")
             }
         }

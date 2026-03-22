@@ -12,7 +12,12 @@ import android.util.DisplayMetrics
 import android.util.Log
 import android.view.accessibility.AccessibilityEvent
 import android.view.accessibility.AccessibilityNodeInfo
+import android.app.NotificationChannel
+import android.app.NotificationManager
+import android.app.PendingIntent
+import android.os.Build
 import android.view.WindowManager
+import androidx.core.app.NotificationCompat
 import com.google.android.gms.wearable.MessageClient
 import com.google.android.gms.wearable.Wearable
 
@@ -20,6 +25,8 @@ class CameraControlService : AccessibilityService() {
 
     companion object {
         const val TAG = "CameraControlService"
+        private const val NOTIFICATION_CHANNEL_ID = "camera_remote_service"
+        private const val NOTIFICATION_ID = 1001
         var instance: CameraControlService? = null
             private set
         val isRunning: Boolean get() = instance != null
@@ -37,11 +44,11 @@ class CameraControlService : AccessibilityService() {
     )
     private val recordDescriptions = listOf(
         "record", "start recording", "record video", "stop recording",
-        "stop", "recording", "rec"
+        "recording", "record button"
     )
     private val switchCameraDescriptions = listOf(
         "switch camera", "flip camera", "toggle camera", "front camera",
-        "rear camera", "rotate camera", "switch", "flip", "selfie",
+        "rear camera", "rotate camera", "selfie",
         "change camera", "switch to front", "switch to rear"
     )
     private val flashDescriptions = listOf(
@@ -61,11 +68,26 @@ class CameraControlService : AccessibilityService() {
         instance = this
         messageClient = Wearable.getMessageClient(this)
         settings = SettingsManager(this)
+        createNotificationChannel()
+        cancelServiceNotification()
         Log.d(TAG, "CameraControlService connected and ready")
     }
 
+    private var lastCameraDetected = false
+
     override fun onAccessibilityEvent(event: AccessibilityEvent?) {
-        // We don't need to actively process events; we react to commands
+        // Detect when camera app opens/closes and notify watch
+        if (event?.eventType == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED) {
+            val root = rootInActiveWindow ?: return
+            val isCameraApp = isCameraAppInForeground(root)
+            root.recycle()
+            if (isCameraApp && !lastCameraDetected) {
+                lastCameraDetected = true
+                sendStatusToWatch("camera_detected")
+            } else if (!isCameraApp && lastCameraDetected) {
+                lastCameraDetected = false
+            }
+        }
     }
 
     override fun onInterrupt() {
@@ -75,11 +97,23 @@ class CameraControlService : AccessibilityService() {
     override fun onDestroy() {
         super.onDestroy()
         instance = null
+        showServiceStoppedNotification()
         Log.d(TAG, "CameraControlService destroyed")
     }
 
     // Track flash state for direct toggling
     private var flashOn = false
+
+    private fun requireCameraOpen(action: () -> Unit) {
+        val root = rootInActiveWindow
+        if (root != null && isCameraAppInForeground(root)) {
+            root.recycle()
+            action()
+        } else {
+            root?.recycle()
+            sendStatusToWatch("camera_not_open")
+        }
+    }
 
     fun handleCommand(command: String) {
         Log.d(TAG, "handleCommand: $command")
@@ -89,14 +123,7 @@ class CameraControlService : AccessibilityService() {
             val parts = command.split(":")
             val zoomIn = command.startsWith("zoom_in")
             val steps = parts.getOrNull(1)?.toIntOrNull() ?: 1
-            val root = rootInActiveWindow
-            if (root != null && isCameraAppInForeground(root)) {
-                root.recycle()
-                zoom(zoomIn = zoomIn, steps = steps)
-            } else {
-                root?.recycle()
-                sendStatusToWatch("camera_not_open")
-            }
+            requireCameraOpen { zoom(zoomIn = zoomIn, steps = steps) }
             return
         }
 
@@ -104,46 +131,13 @@ class CameraControlService : AccessibilityService() {
             "open_camera" -> openCamera()
             "capture" -> capture()
             "open_video" -> openVideoCamera()
-            "switch_camera" -> {
-                val root = rootInActiveWindow
-                if (root != null && isCameraAppInForeground(root)) {
-                    root.recycle()
-                    switchCamera()
-                } else {
-                    root?.recycle()
-                    sendStatusToWatch("camera_not_open")
-                }
-            }
-            "toggle_flash" -> {
-                val root = rootInActiveWindow
-                if (root != null && isCameraAppInForeground(root)) {
-                    root.recycle()
-                    toggleFlash()
-                } else {
-                    root?.recycle()
-                    sendStatusToWatch("camera_not_open")
-                }
-            }
-            "zoom_in" -> {
-                val root = rootInActiveWindow
-                if (root != null && isCameraAppInForeground(root)) {
-                    root.recycle()
-                    zoom(zoomIn = true, steps = 1)
-                } else {
-                    root?.recycle()
-                    sendStatusToWatch("camera_not_open")
-                }
-            }
-            "zoom_out" -> {
-                val root = rootInActiveWindow
-                if (root != null && isCameraAppInForeground(root)) {
-                    root.recycle()
-                    zoom(zoomIn = false, steps = 1)
-                } else {
-                    root?.recycle()
-                    sendStatusToWatch("camera_not_open")
-                }
-            }
+            "switch_camera" -> requireCameraOpen { switchCamera() }
+            "toggle_flash" -> requireCameraOpen { toggleFlash() }
+            "zoom_in" -> requireCameraOpen { zoom(zoomIn = true, steps = 1) }
+            "zoom_out" -> requireCameraOpen { zoom(zoomIn = false, steps = 1) }
+            "open_gallery" -> openGallery()
+            "burst_capture" -> requireCameraOpen { burstCapture() }
+            "capture_timer" -> captureWithTimer()
             else -> {
                 Log.w(TAG, "Unknown command: $command")
                 sendStatusToWatch("unknown_command")
@@ -270,8 +264,8 @@ class CameraControlService : AccessibilityService() {
      * Check if the camera is currently in video mode by looking for record buttons
      * but no photo shutter buttons.
      */
-    private fun isInVideoMode(): Boolean {
-        val root = rootInActiveWindow ?: return false
+    private fun isInVideoMode(existingRoot: AccessibilityNodeInfo? = null): Boolean {
+        val root = existingRoot ?: rootInActiveWindow ?: return false
         var hasRecord = false
         var hasShutter = false
 
@@ -291,7 +285,7 @@ class CameraControlService : AccessibilityService() {
                 break
             }
         }
-        root.recycle()
+        if (existingRoot == null) root.recycle()
         Log.d(TAG, "isInVideoMode: hasRecord=$hasRecord, hasShutter=$hasShutter")
         return hasRecord && !hasShutter
     }
@@ -380,65 +374,54 @@ class CameraControlService : AccessibilityService() {
      * Zoom in or out by performing a pinch gesture on screen.
      * Uses two-finger spread (zoom in) or pinch (zoom out).
      */
-    private fun zoom(zoomIn: Boolean, steps: Int = 1) {
-        val wm = getSystemService(Context.WINDOW_SERVICE) as WindowManager
-        val metrics = DisplayMetrics()
-        @Suppress("DEPRECATION")
-        wm.defaultDisplay.getMetrics(metrics)
-
-        val centerX = metrics.widthPixels / 2f
-        val centerY = metrics.heightPixels / 2f
-        // Scale gesture distance by steps — more rotation = bigger zoom
-        val baseOffset = metrics.widthPixels / 10f
-        val offset = baseOffset * steps.coerceIn(1, 5)
-
-        val duration = 150L
-        Log.d(TAG, "zoom: zoomIn=$zoomIn steps=$steps offset=$offset")
-        if (zoomIn) {
-            // Spread: fingers move outward from center
-            val path1 = Path().apply {
-                moveTo(centerX - offset / 2, centerY)
-                lineTo(centerX - offset, centerY)
-            }
-            val path2 = Path().apply {
-                moveTo(centerX + offset / 2, centerY)
-                lineTo(centerX + offset, centerY)
-            }
-            val gesture = GestureDescription.Builder()
-                .addStroke(GestureDescription.StrokeDescription(path1, 0, duration))
-                .addStroke(GestureDescription.StrokeDescription(path2, 0, duration))
-                .build()
-            dispatchGesture(gesture, object : GestureResultCallback() {
-                override fun onCompleted(gestureDescription: GestureDescription?) {
-                    Log.d(TAG, "Zoom in gesture completed")
-                }
-                override fun onCancelled(gestureDescription: GestureDescription?) {
-                    Log.w(TAG, "Zoom in gesture cancelled")
-                }
-            }, null)
+    private fun getScreenSize(): Pair<Int, Int> {
+        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            val wm = getSystemService(Context.WINDOW_SERVICE) as WindowManager
+            val bounds = wm.currentWindowMetrics.bounds
+            Pair(bounds.width(), bounds.height())
         } else {
-            // Pinch: fingers move inward toward center
-            val path1 = Path().apply {
-                moveTo(centerX - offset, centerY)
-                lineTo(centerX - offset / 2, centerY)
-            }
-            val path2 = Path().apply {
-                moveTo(centerX + offset, centerY)
-                lineTo(centerX + offset / 2, centerY)
-            }
-            val gesture = GestureDescription.Builder()
-                .addStroke(GestureDescription.StrokeDescription(path1, 0, duration))
-                .addStroke(GestureDescription.StrokeDescription(path2, 0, duration))
-                .build()
-            dispatchGesture(gesture, object : GestureResultCallback() {
-                override fun onCompleted(gestureDescription: GestureDescription?) {
-                    Log.d(TAG, "Zoom out gesture completed")
-                }
-                override fun onCancelled(gestureDescription: GestureDescription?) {
-                    Log.w(TAG, "Zoom out gesture cancelled")
-                }
-            }, null)
+            val wm = getSystemService(Context.WINDOW_SERVICE) as WindowManager
+            val metrics = DisplayMetrics()
+            @Suppress("DEPRECATION")
+            wm.defaultDisplay.getMetrics(metrics)
+            Pair(metrics.widthPixels, metrics.heightPixels)
         }
+    }
+
+    private fun zoom(zoomIn: Boolean, steps: Int = 1) {
+        val (screenWidth, screenHeight) = getScreenSize()
+        val centerX = screenWidth / 2f
+        val centerY = screenHeight / 2f
+        val baseOffset = screenWidth / 10f
+        val offset = baseOffset * steps.coerceIn(1, 5)
+        val duration = 150L
+
+        // Zoom in = spread outward, zoom out = pinch inward
+        val startOffset = if (zoomIn) offset / 2 else offset
+        val endOffset = if (zoomIn) offset else offset / 2
+
+        val path1 = Path().apply {
+            moveTo(centerX - startOffset, centerY)
+            lineTo(centerX - endOffset, centerY)
+        }
+        val path2 = Path().apply {
+            moveTo(centerX + startOffset, centerY)
+            lineTo(centerX + endOffset, centerY)
+        }
+        val gesture = GestureDescription.Builder()
+            .addStroke(GestureDescription.StrokeDescription(path1, 0, duration))
+            .addStroke(GestureDescription.StrokeDescription(path2, 0, duration))
+            .build()
+        val label = if (zoomIn) "in" else "out"
+        Log.d(TAG, "zoom: $label steps=$steps offset=$offset")
+        dispatchGesture(gesture, object : GestureResultCallback() {
+            override fun onCompleted(gestureDescription: GestureDescription?) {
+                Log.d(TAG, "Zoom $label gesture completed")
+            }
+            override fun onCancelled(gestureDescription: GestureDescription?) {
+                Log.w(TAG, "Zoom $label gesture cancelled")
+            }
+        }, null)
     }
 
     private fun toggleFlash() {
@@ -449,8 +432,8 @@ class CameraControlService : AccessibilityService() {
         //    (leftmost = off, rightmost = on) — no hardcoded coords
         Log.d(TAG, "toggleFlash: flashOn=$flashOn")
 
-        // First dump all visible nodes for debugging
-        dumpVisibleNodes()
+        // Dump nodes only in debug builds
+        if (BuildConfig.DEBUG) dumpVisibleNodes()
 
         // Try accessibility-based approach
         if (tryAccessibilityFlashToggle()) {
@@ -517,8 +500,7 @@ class CameraControlService : AccessibilityService() {
     private var flashSubmenuRetries = 0
 
     private fun selectFlashSubmenuOption() {
-        // Dump nodes for debugging
-        dumpVisibleNodes()
+        if (BuildConfig.DEBUG) dumpVisibleNodes()
 
         val rootNode = rootInActiveWindow ?: run {
             flashOn = !flashOn
@@ -821,15 +803,10 @@ class CameraControlService : AccessibilityService() {
     }
 
     private fun tapShutterFallback() {
-        // Tap the center-bottom area of the screen where the shutter button typically is
-        val wm = getSystemService(Context.WINDOW_SERVICE) as WindowManager
-        val metrics = DisplayMetrics()
-        @Suppress("DEPRECATION")
-        wm.defaultDisplay.getMetrics(metrics)
-
-        val x = metrics.widthPixels / 2f
+        val (screenWidth, screenHeight) = getScreenSize()
+        val x = screenWidth / 2f
         val fallbackPercent = settings.getShutterFallbackPosition() / 100f
-        val y = metrics.heightPixels * fallbackPercent
+        val y = screenHeight * fallbackPercent
 
         val path = Path().apply {
             moveTo(x, y)
@@ -850,6 +827,78 @@ class CameraControlService : AccessibilityService() {
                 sendStatusToWatch("capture_failed")
             }
         }, null)
+    }
+
+    private fun openGallery() {
+        try {
+            val intent = Intent(Intent.ACTION_VIEW).apply {
+                type = "image/*"
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            }
+            startActivity(intent)
+            sendStatusToWatch("gallery_opened")
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to open gallery", e)
+            sendStatusToWatch("gallery_failed")
+        }
+    }
+
+    private fun burstCapture() {
+        val burstCount = 5
+        sendStatusToWatch("burst_$burstCount")
+        for (i in 0 until burstCount) {
+            handler.postDelayed({ doCapture() }, i * 300L)
+        }
+    }
+
+    private fun captureWithTimer() {
+        val timerSec = settings.getDefaultTimerSeconds()
+        sendStatusToWatch("timer_${timerSec}s")
+        handler.postDelayed({ capture() }, timerSec * 1000L)
+    }
+
+    private fun createNotificationChannel() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            val channel = NotificationChannel(
+                NOTIFICATION_CHANNEL_ID,
+                "Service Status",
+                NotificationManager.IMPORTANCE_DEFAULT
+            ).apply {
+                description = "Notifications about the Camera Remote accessibility service"
+            }
+            val nm = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+            nm.createNotificationChannel(channel)
+        }
+    }
+
+    private fun showServiceStoppedNotification() {
+        try {
+            val intent = Intent(android.provider.Settings.ACTION_ACCESSIBILITY_SETTINGS)
+            val pendingIntent = PendingIntent.getActivity(
+                this, 0, intent,
+                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+            )
+            val notification = NotificationCompat.Builder(this, NOTIFICATION_CHANNEL_ID)
+                .setSmallIcon(R.mipmap.ic_launcher)
+                .setContentTitle("Camera Remote")
+                .setContentText("Accessibility service stopped. Tap to re-enable.")
+                .setContentIntent(pendingIntent)
+                .setAutoCancel(true)
+                .build()
+            val nm = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+            nm.notify(NOTIFICATION_ID, notification)
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to show service stopped notification", e)
+        }
+    }
+
+    private fun cancelServiceNotification() {
+        try {
+            val nm = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+            nm.cancel(NOTIFICATION_ID)
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to cancel notification", e)
+        }
     }
 
     private fun sendStatusToWatch(status: String) {

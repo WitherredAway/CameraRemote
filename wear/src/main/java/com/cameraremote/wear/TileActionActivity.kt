@@ -62,7 +62,9 @@ class TileActionActivity : AppCompatActivity() {
                 @Suppress("DEPRECATION")
                 getSystemService(Vibrator::class.java)
             }
-            vibrator?.vibrate(VibrationEffect.createOneShot(50, VibrationEffect.DEFAULT_AMPLITUDE))
+            val prefs = getSharedPreferences("watch_settings", MODE_PRIVATE)
+            val durationMs = prefs.getInt("haptic_duration_ms", DEFAULT_HAPTIC_DURATION_MS).toLong()
+            vibrator?.vibrate(VibrationEffect.createOneShot(durationMs, VibrationEffect.DEFAULT_AMPLITUDE))
         } catch (e: Exception) {
             Log.w(TAG, "Vibration failed", e)
         }

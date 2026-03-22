@@ -19,6 +19,7 @@ import com.google.android.material.color.DynamicColors
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
 
@@ -32,7 +33,8 @@ class MainActivity : AppCompatActivity() {
     }
 
     private lateinit var binding: ActivityMainBinding
-    private val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
+    private val scopeJob = SupervisorJob()
+    private val scope = CoroutineScope(Dispatchers.IO + scopeJob)
 
     override fun onCreate(savedInstanceState: Bundle?) {
         DynamicColors.applyToActivityIfAvailable(this)
@@ -99,6 +101,11 @@ class MainActivity : AppCompatActivity() {
         updateServiceStatus()
         updateWatchConnection()
         checkForUpdates()
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        scopeJob.cancel()
     }
 
     private fun checkForUpdates() {

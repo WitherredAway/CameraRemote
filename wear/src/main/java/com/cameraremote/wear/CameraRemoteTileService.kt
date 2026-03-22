@@ -24,13 +24,13 @@ class CameraRemoteTileService : androidx.wear.tiles.TileService() {
         private const val COLOR_ON_SURFACE = 0xFFE6E1E5.toInt()
         private const val COLOR_PRIMARY = 0xFFD0BCFF.toInt()
 
-        // Button colors (matching circle buttons in app)
-        private const val COLOR_BTN_CAMERA = 0xFFB388FF.toInt()
-        private const val COLOR_BTN_CAPTURE = 0xFFFF5252.toInt()
-        private const val COLOR_BTN_TIMER = 0xFFFFD740.toInt()
-        private const val COLOR_BTN_FLASH = 0xFFFFAB40.toInt()
-        private const val COLOR_BTN_SWITCH = 0xFF69F0AE.toInt()
-        private const val COLOR_BTN_VIDEO = 0xFF448AFF.toInt()
+        // Pastel button colors (matching circle buttons in app)
+        private const val COLOR_BTN_CAMERA = 0xFFB3E5FC.toInt()  // light blue
+        private const val COLOR_BTN_CAPTURE = 0xFFF5F5F5.toInt() // white/shutter
+        private const val COLOR_BTN_TIMER = 0xFFFFCDD2.toInt()   // pastel red
+        private const val COLOR_BTN_FLASH = 0xFFFFF3B0.toInt()   // pastel yellow
+        private const val COLOR_BTN_SWITCH = 0xFFE0E0E0.toInt()  // grey
+        private const val COLOR_BTN_VIDEO = 0xFFCE93D8.toInt()   // pastel purple
     }
 
     override fun onTileRequest(requestParams: RequestBuilders.TileRequest): ListenableFuture<TileBuilders.Tile> {
@@ -112,9 +112,9 @@ class CameraRemoteTileService : androidx.wear.tiles.TileService() {
         return LayoutElementBuilders.Row.Builder()
             .addContent(buildTileButton("Open", "open_camera", COLOR_BTN_CAMERA))
             .addContent(buildHSpacer())
-            .addContent(buildTileButton("Snap", "take_photo", COLOR_BTN_CAPTURE))
+            .addContent(buildTileButton("Snap", "capture", COLOR_BTN_CAPTURE))
             .addContent(buildHSpacer())
-            .addContent(buildTileButton("Timer", "take_photo_timer", COLOR_BTN_TIMER))
+            .addContent(buildTileButton("Timer", "capture_timer", COLOR_BTN_TIMER))
             .build()
     }
 
