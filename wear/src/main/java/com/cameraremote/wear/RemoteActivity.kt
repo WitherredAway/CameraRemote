@@ -55,6 +55,8 @@ class RemoteActivity : AppCompatActivity(), MessageClient.OnMessageReceivedListe
     private var vibrateOnCountdown = true
     private var captureCount = 0
     private var lastPreviewUri: String? = null
+    private val zoomQueue = mutableListOf<String>()
+    private var isProcessingZoom = false
     private val heartbeatHandler = Handler(Looper.getMainLooper())
     private val heartbeatRunnable = object : Runnable {
         override fun run() {
@@ -454,17 +456,37 @@ class RemoteActivity : AppCompatActivity(), MessageClient.OnMessageReceivedListe
         }
     }
 
+    private val processZoomRunnable = object : Runnable {
+        override fun run() {
+            if (zoomQueue.isNotEmpty()) {
+                val cmd = zoomQueue.removeAt(0)
+                sendCommand(cmd)
+                if (zoomQueue.isNotEmpty()) {
+                    heartbeatHandler.postDelayed(this, 80L)
+                } else {
+                    isProcessingZoom = false
+                }
+            } else {
+                isProcessingZoom = false
+            }
+        }
+    }
+
     override fun onGenericMotionEvent(event: MotionEvent): Boolean {
         if (event.action == MotionEvent.ACTION_SCROLL &&
             event.isFromSource(InputDeviceCompat.SOURCE_ROTARY_ENCODER)) {
             val delta = -event.getAxisValue(MotionEventCompat.AXIS_SCROLL)
 
-            // Send every rotation tick immediately for smooth, responsive zoom
-            // Each tick is 1 step; fast spinning sends many ticks in rapid succession
+            // Queue rotation ticks and process with small delay between each
             if (delta > 0) {
-                sendCommand("zoom_in:1")
+                zoomQueue.add("zoom_in:1")
             } else if (delta < 0) {
-                sendCommand("zoom_out:1")
+                zoomQueue.add("zoom_out:1")
+            }
+
+            if (!isProcessingZoom) {
+                isProcessingZoom = true
+                heartbeatHandler.post(processZoomRunnable)
             }
             vibrate()
             return true

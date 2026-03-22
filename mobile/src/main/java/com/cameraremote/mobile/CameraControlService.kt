@@ -854,14 +854,22 @@ class CameraControlService : AccessibilityService() {
         try {
             val projection = arrayOf(MediaStore.Images.Media._ID)
             val sortOrder = "${MediaStore.Images.Media.DATE_ADDED} DESC"
+            Log.d(TAG, "sendPreviewToWatch: querying MediaStore for latest image")
             val cursor = contentResolver.query(
                 MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
                 projection, null, null, sortOrder
             )
-            cursor?.use {
+            if (cursor == null) {
+                Log.e(TAG, "sendPreviewToWatch: cursor is null - permission denied?")
+                sendStatusToWatch("preview_failed")
+                return
+            }
+            cursor.use {
+                Log.d(TAG, "sendPreviewToWatch: cursor count=${it.count}")
                 if (it.moveToFirst()) {
                     val id = it.getLong(it.getColumnIndexOrThrow(MediaStore.Images.Media._ID))
                     val uri = ContentUris.withAppendedId(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, id)
+                    Log.d(TAG, "sendPreviewToWatch: latest image uri=$uri")
 
                     val inputStream = contentResolver.openInputStream(uri)
                     val options = BitmapFactory.Options().apply { inSampleSize = 4 }
