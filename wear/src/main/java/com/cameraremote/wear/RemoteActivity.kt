@@ -496,9 +496,10 @@ class RemoteActivity : AppCompatActivity(), MessageClient.OnMessageReceivedListe
                     zoomQueue.removeAt(0)
                     steps++
                 }
-                // Send batched command — fast spin = more accumulated ticks = bigger zoom step
+                // Scale steps with power curve: slow=precise (1→1), fast=accelerated (5→11, 10→32)
+                val scaledSteps = Math.ceil(Math.pow(steps.toDouble(), 1.5)).toInt()
                 val dir = if (direction.startsWith("zoom_in")) "zoom_in" else "zoom_out"
-                sendCommand("$dir:$steps")
+                sendCommand("$dir:$scaledSteps")
                 lastZoomSentTime = System.currentTimeMillis()
                 // Always schedule next check — more ticks may arrive during the wait
                 heartbeatHandler.postDelayed(this, ZOOM_INTERVAL_MS)
