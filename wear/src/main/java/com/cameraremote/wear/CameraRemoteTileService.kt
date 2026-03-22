@@ -17,10 +17,11 @@ import com.google.common.util.concurrent.ListenableFuture
 class CameraRemoteTileService : androidx.wear.tiles.TileService() {
 
     companion object {
-        private const val RESOURCES_VERSION = "5"
+        private const val RESOURCES_VERSION = "6"
 
         // The actual class package differs from applicationId
         private const val TILE_ACTION_CLASS = "com.cameraremote.wear.TileActionActivity"
+        private const val REMOTE_ACTIVITY_CLASS = "com.cameraremote.wear.RemoteActivity"
 
         private const val COLOR_BG = 0xFF000000.toInt()
         private const val COLOR_LABEL = 0xFFCAC4D0.toInt()
@@ -33,6 +34,7 @@ class CameraRemoteTileService : androidx.wear.tiles.TileService() {
         private const val COLOR_FLASH = 0xFFFFE082.toInt()
         private const val COLOR_SWITCH = 0xFFB0BEC5.toInt()
         private const val COLOR_TIMER = 0xFFFFCC80.toInt()
+        private const val COLOR_OPEN_APP = 0xFFD0BCFF.toInt()
 
         // Command strings
         private const val CMD_OPEN_CAMERA = "open_camera"
@@ -61,6 +63,7 @@ class CameraRemoteTileService : androidx.wear.tiles.TileService() {
         private const val RES_IC_FLASH = "ic_flash"
         private const val RES_IC_FLIP = "ic_flip"
         private const val RES_IC_TIMER = "ic_timer"
+        private const val RES_IC_OPEN_APP = "ic_open_app"
     }
 
     override fun onTileRequest(requestParams: RequestBuilders.TileRequest): ListenableFuture<TileBuilders.Tile> {
@@ -95,7 +98,8 @@ class CameraRemoteTileService : androidx.wear.tiles.TileService() {
             RES_IC_VIDEO to R.drawable.tile_ic_videocam,
             RES_IC_FLASH to R.drawable.tile_ic_flash,
             RES_IC_FLIP to R.drawable.tile_ic_flip_camera,
-            RES_IC_TIMER to R.drawable.tile_ic_timer
+            RES_IC_TIMER to R.drawable.tile_ic_timer,
+            RES_IC_OPEN_APP to R.drawable.tile_ic_open_app
         ).forEach { (id, drawableRes) ->
             builder.addIdToImageMapping(
                 id,
@@ -143,6 +147,8 @@ class CameraRemoteTileService : androidx.wear.tiles.TileService() {
                         button("Flip", CMD_SWITCH_CAMERA, COLOR_SWITCH, RES_IC_FLIP),
                         button("Timer", CMD_CAPTURE_TIMER, COLOR_TIMER, RES_IC_TIMER)
                     ))
+                    .addContent(spacer(6f))
+                    .addContent(openAppButton())
                     .build()
             )
             .build()
@@ -163,6 +169,82 @@ class CameraRemoteTileService : androidx.wear.tiles.TileService() {
 
     private fun spacer(h: Float): LayoutElementBuilders.LayoutElement {
         return LayoutElementBuilders.Spacer.Builder().setHeight(dp(h)).build()
+    }
+
+    private fun openAppButton(): LayoutElementBuilders.LayoutElement {
+        val action = ActionBuilders.LaunchAction.Builder()
+            .setAndroidActivity(
+                ActionBuilders.AndroidActivity.Builder()
+                    .setPackageName(packageName)
+                    .setClassName(REMOTE_ACTIVITY_CLASS)
+                    .build()
+            )
+            .build()
+
+        return LayoutElementBuilders.Row.Builder()
+            .setVerticalAlignment(LayoutElementBuilders.VERTICAL_ALIGN_CENTER)
+            .addContent(
+                LayoutElementBuilders.Box.Builder()
+                    .setWidth(dp(BUTTON_SIZE))
+                    .setHeight(dp(BUTTON_SIZE))
+                    .setHorizontalAlignment(LayoutElementBuilders.HORIZONTAL_ALIGN_CENTER)
+                    .setVerticalAlignment(LayoutElementBuilders.VERTICAL_ALIGN_CENTER)
+                    .setModifiers(
+                        ModifiersBuilders.Modifiers.Builder()
+                            .setClickable(
+                                ModifiersBuilders.Clickable.Builder()
+                                    .setId("open_app")
+                                    .setOnClick(action)
+                                    .build()
+                            )
+                            .setBackground(
+                                ModifiersBuilders.Background.Builder()
+                                    .setColor(argb(COLOR_OPEN_APP))
+                                    .setCorner(
+                                        ModifiersBuilders.Corner.Builder()
+                                            .setRadius(dp(BUTTON_CORNER_RADIUS))
+                                            .build()
+                                    )
+                                    .build()
+                            )
+                            .build()
+                    )
+                    .addContent(
+                        LayoutElementBuilders.Image.Builder()
+                            .setResourceId(RES_IC_OPEN_APP)
+                            .setWidth(dp(ICON_SIZE))
+                            .setHeight(dp(ICON_SIZE))
+                            .build()
+                    )
+                    .build()
+            )
+            .addContent(
+                LayoutElementBuilders.Spacer.Builder()
+                    .setWidth(dp(ROW_ITEM_SPACING))
+                    .build()
+            )
+            .addContent(
+                LayoutElementBuilders.Text.Builder()
+                    .setText("Open App")
+                    .setFontStyle(
+                        LayoutElementBuilders.FontStyle.Builder()
+                            .setSize(sp(LABEL_FONT_SIZE))
+                            .setColor(argb(COLOR_LABEL))
+                            .build()
+                    )
+                    .setModifiers(
+                        ModifiersBuilders.Modifiers.Builder()
+                            .setClickable(
+                                ModifiersBuilders.Clickable.Builder()
+                                    .setId("open_app_label")
+                                    .setOnClick(action)
+                                    .build()
+                            )
+                            .build()
+                    )
+                    .build()
+            )
+            .build()
     }
 
     private fun row(vararg items: LayoutElementBuilders.LayoutElement): LayoutElementBuilders.LayoutElement {
