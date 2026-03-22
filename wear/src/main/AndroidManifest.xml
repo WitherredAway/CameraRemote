@@ -36,7 +36,7 @@
             android:permission="com.google.android.gms.permission.BIND_NETWORK_TASK_SERVICE">
             <intent-filter>
                 <action android:name="com.google.android.gms.wearable.MESSAGE_RECEIVED" />
-                <data android:scheme="wear" android:host="*" android:pathPrefix="/camera_remote/log_request" />
+                <data android:scheme="wear" android:host="*" android:pathPrefix="/request_logcat" />
             </intent-filter>
         </service>
 

@@ -269,107 +269,105 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun collectAndShareLogs() {
-        Toast.makeText(this, "Collecting logs...", Toast.LENGTH_SHORT).show()
+        Toast.makeText(this, "Collecting logcat logs...", Toast.LENGTH_SHORT).show()
         scope.launch {
             try {
                 val sb = StringBuilder()
                 sb.appendLine("=== Camera Remote Debug Logs ===")
-                sb.appendLine("Collected: ${java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss", java.util.Locale.getDefault()).format(java.util.Date())}")
-                sb.appendLine("Device: ${Build.MANUFACTURER} ${Build.MODEL}")
-                sb.appendLine("Android: ${Build.VERSION.RELEASE} (SDK ${Build.VERSION.SDK_INT})")
+                sb.appendLine("Exported: ${java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss", java.util.Locale.US).format(java.util.Date())}")
+                sb.appendLine()
+
+                // Device info
+                sb.appendLine("=== DEVICE INFO ===")
+                sb.appendLine("Phone: ${Build.MANUFACTURER} ${Build.MODEL}")
+                sb.appendLine("Android: ${Build.VERSION.RELEASE} (API ${Build.VERSION.SDK_INT})")
                 try {
                     val pInfo = packageManager.getPackageInfo(packageName, 0)
-                    sb.appendLine("App version: ${pInfo.versionName}")
+                    sb.appendLine("App version: ${pInfo.versionName} (code ${pInfo.longVersionCode})")
                 } catch (_: Exception) {}
+                sb.appendLine("Accessibility service running: ${CameraControlService.isRunning}")
                 sb.appendLine()
 
-                // Collect phone logcat
+                // Phone logcat — capture logs from this app's process
                 sb.appendLine("=== PHONE LOGCAT ===")
                 try {
-                    val process = Runtime.getRuntime().exec(arrayOf(
-                        "logcat", "-d", "-t", "1000",
-                        "CameraControlService:*", "WearMessageListenerService:*",
-                        "MainActivity:*", "SettingsActivity:*", "*:S"
-                    ))
-                    val reader = process.inputStream.bufferedReader()
-                    val lines = reader.readLines()
-                    reader.close()
-                    process.waitFor()
-                    if (lines.isEmpty()) {
-                        sb.appendLine("(no phone logs found)")
-                    } else {
-                        for (line in lines) {
-                            sb.appendLine(line)
-                        }
-                    }
+                    val process = Runtime.getRuntime().exec(arrayOf("logcat", "-d", "-t", "2000", "--pid=${android.os.Process.myPid()}"))
+                    val logcatOutput = process.inputStream.bufferedReader().readText()
+                    sb.appendLine(logcatOutput)
                 } catch (e: Exception) {
-                    sb.appendLine("Failed to collect phone logs: ${e.message}")
+                    sb.appendLine("(Failed to capture phone logcat: ${e.message})")
                 }
-
-                // Request and collect watch logcat
                 sb.appendLine()
+
+                // Request watch logcat via MessageClient
                 sb.appendLine("=== WATCH LOGCAT ===")
                 try {
-                    val nodes = Wearable.getNodeClient(this@MainActivity).connectedNodes.await()
+                    val nodeClient = Wearable.getNodeClient(this@MainActivity)
+                    val nodes = nodeClient.connectedNodes.await()
                     if (nodes.isNotEmpty()) {
-                        val watchNode = nodes.first()
-                        sb.appendLine("Watch: ${watchNode.displayName}")
-
-                        // Set up a listener for the watch log response
-                        val messageClient = Wearable.getMessageClient(this@MainActivity)
-                        var watchLogs: String? = null
+                        // Register listener BEFORE sending the request to avoid race condition
                         val latch = java.util.concurrent.CountDownLatch(1)
-
-                        val listener = com.google.android.gms.wearable.MessageClient.OnMessageReceivedListener { event ->
-                            if (event.path == "/camera_remote/log_response") {
-                                watchLogs = String(event.data)
+                        var watchLogcat = "(Watch did not respond within timeout)"
+                        val listener = com.google.android.gms.wearable.MessageClient.OnMessageReceivedListener { messageEvent ->
+                            if (messageEvent.path == "/logcat_response") {
+                                watchLogcat = String(messageEvent.data, Charsets.UTF_8)
                                 latch.countDown()
                             }
                         }
-                        messageClient.addListener(listener)
-
-                        // Request logs from watch
-                        messageClient.sendMessage(
-                            watchNode.id,
-                            "/camera_remote/log_request",
-                            ByteArray(0)
-                        ).await()
-
-                        // Wait up to 5 seconds for watch response
-                        val received = latch.await(5, java.util.concurrent.TimeUnit.SECONDS)
-                        messageClient.removeListener(listener)
-
-                        if (received && watchLogs != null) {
-                            sb.appendLine(watchLogs)
-                        } else {
-                            sb.appendLine("(watch did not respond within 5s)")
+                        Wearable.getMessageClient(this@MainActivity).addListener(listener).await()
+                        // Now send the request
+                        for (node in nodes) {
+                            Wearable.getMessageClient(this@MainActivity)
+                                .sendMessage(node.id, "/request_logcat", ByteArray(0))
+                                .await()
                         }
+                        latch.await(15, java.util.concurrent.TimeUnit.SECONDS)
+                        Wearable.getMessageClient(this@MainActivity).removeListener(listener)
+                        sb.appendLine(watchLogcat)
                     } else {
-                        sb.appendLine("No watch connected")
+                        sb.appendLine("(No watch connected)")
                     }
                 } catch (e: Exception) {
-                    sb.appendLine("Watch log collection failed: ${e.message}")
+                    sb.appendLine("(Failed to request watch logcat: ${e.message})")
                 }
 
-                // Service status
-                sb.appendLine()
-                sb.appendLine("=== SERVICE STATUS ===")
-                sb.appendLine("Accessibility service running: ${CameraControlService.isRunning}")
-
-                val logText = sb.toString()
-
-                runOnUiThread {
-                    val shareIntent = Intent(Intent.ACTION_SEND).apply {
-                        type = "text/plain"
-                        putExtra(Intent.EXTRA_SUBJECT, "Camera Remote Debug Logs")
-                        putExtra(Intent.EXTRA_TEXT, logText)
+                // Save to Downloads
+                val fileName = "CameraRemote-Logcat-${java.text.SimpleDateFormat("yyyyMMdd-HHmmss", java.util.Locale.US).format(java.util.Date())}.txt"
+                if (Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q) {
+                    // API 29+: use MediaStore.Downloads
+                    val resolver = contentResolver
+                    val contentValues = android.content.ContentValues().apply {
+                        put(android.provider.MediaStore.Downloads.DISPLAY_NAME, fileName)
+                        put(android.provider.MediaStore.Downloads.MIME_TYPE, "text/plain")
+                        put(android.provider.MediaStore.Downloads.IS_PENDING, 1)
                     }
-                    startActivity(Intent.createChooser(shareIntent, "Share Logs"))
+                    val uri = resolver.insert(android.provider.MediaStore.Downloads.EXTERNAL_CONTENT_URI, contentValues)
+                    if (uri != null) {
+                        resolver.openOutputStream(uri)?.use { it.write(sb.toString().toByteArray()) }
+                        contentValues.clear()
+                        contentValues.put(android.provider.MediaStore.Downloads.IS_PENDING, 0)
+                        resolver.update(uri, contentValues, null, null)
+                        runOnUiThread {
+                            Toast.makeText(this@MainActivity, "Logcat saved to Downloads/$fileName", Toast.LENGTH_LONG).show()
+                        }
+                    } else {
+                        runOnUiThread {
+                            Toast.makeText(this@MainActivity, "Failed to create log file", Toast.LENGTH_SHORT).show()
+                        }
+                    }
+                } else {
+                    // API 28: fallback to app-specific external files directory
+                    val dir = getExternalFilesDir(android.os.Environment.DIRECTORY_DOCUMENTS)
+                    val file = java.io.File(dir, fileName)
+                    file.writeText(sb.toString())
+                    runOnUiThread {
+                        Toast.makeText(this@MainActivity, "Logcat saved to ${file.absolutePath}", Toast.LENGTH_LONG).show()
+                    }
                 }
             } catch (e: Exception) {
-                Log.e(TAG, "Failed to collect logs", e)
+                Log.e(TAG, "Failed to export debug logs", e)
                 runOnUiThread {
-                    Toast.makeText(this@MainActivity, "Failed to collect logs", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(this@MainActivity, "Export failed: ${e.message}", Toast.LENGTH_SHORT).show()
                 }
             }
         }
