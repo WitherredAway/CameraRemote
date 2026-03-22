@@ -134,17 +134,18 @@ class CameraControlService : AccessibilityService() {
     private fun openCamera() {
         try {
             val intent = Intent(MediaStore.INTENT_ACTION_STILL_IMAGE_CAMERA).apply {
-                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
             }
+            Log.d(TAG, "openCamera: launching STILL_IMAGE_CAMERA intent")
             startActivity(intent)
             sendStatusToWatch("camera_opened")
         } catch (e: Exception) {
-            Log.e(TAG, "Failed to open camera", e)
-            // Fallback: try generic camera intent
+            Log.e(TAG, "Failed to open camera with STILL_IMAGE intent", e)
             try {
                 val fallback = Intent(MediaStore.ACTION_IMAGE_CAPTURE).apply {
-                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
+                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                 }
+                Log.d(TAG, "openCamera: trying IMAGE_CAPTURE fallback")
                 startActivity(fallback)
                 sendStatusToWatch("camera_opened")
             } catch (e2: Exception) {
