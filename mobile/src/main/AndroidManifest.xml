@@ -28,6 +28,11 @@
             android:name=".SettingsActivity"
             android:exported="false" />
 
+        <activity
+            android:name=".DeletePhotoActivity"
+            android:exported="false"
+            android:theme="@android:style/Theme.Translucent.NoTitleBar" />
+
         <!-- Accessibility Service for controlling the camera app -->
         <service
             android:name=".CameraControlService"

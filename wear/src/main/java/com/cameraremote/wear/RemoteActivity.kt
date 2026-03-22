@@ -419,6 +419,7 @@ class RemoteActivity : AppCompatActivity(), MessageClient.OnMessageReceivedListe
             "preview_deleted" -> "Deleted"
             "preview_delete_failed" -> "Delete failed"
             "preview_delete_denied" -> "Delete denied"
+            "preview_delete_cancelled" -> "Delete cancelled"
             else -> {
                 // Handle dynamic statuses like "burst_5", "timer_3s"
                 when {

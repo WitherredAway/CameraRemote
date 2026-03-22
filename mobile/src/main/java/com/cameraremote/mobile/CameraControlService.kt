@@ -916,20 +916,13 @@ class CameraControlService : AccessibilityService() {
 
     private fun deletePreview(uriStr: String) {
         try {
-            val uri = Uri.parse(uriStr)
-            val deleted = contentResolver.delete(uri, null, null)
-            if (deleted > 0) {
-                sendStatusToWatch("preview_deleted")
-                Log.d(TAG, "Preview deleted: $uriStr")
-            } else {
-                sendStatusToWatch("preview_delete_failed")
-                Log.w(TAG, "Failed to delete preview (0 rows): $uriStr")
+            val intent = Intent(this, DeletePhotoActivity::class.java).apply {
+                putExtra(DeletePhotoActivity.EXTRA_URI, uriStr)
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
             }
-        } catch (e: SecurityException) {
-            Log.e(TAG, "Permission denied to delete preview", e)
-            sendStatusToWatch("preview_delete_denied")
+            startActivity(intent)
         } catch (e: Exception) {
-            Log.e(TAG, "Failed to delete preview", e)
+            Log.e(TAG, "Failed to launch delete activity", e)
             sendStatusToWatch("preview_delete_failed")
         }
     }
