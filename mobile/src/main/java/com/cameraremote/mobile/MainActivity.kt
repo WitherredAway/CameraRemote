@@ -306,18 +306,49 @@ class MainActivity : AppCompatActivity() {
                     sb.appendLine("Failed to collect phone logs: ${e.message}")
                 }
 
-                // Collect watch logcat via requesting from watch
+                // Request and collect watch logcat
                 sb.appendLine()
-                sb.appendLine("=== WATCH CONNECTION ===")
+                sb.appendLine("=== WATCH LOGCAT ===")
                 try {
                     val nodes = Wearable.getNodeClient(this@MainActivity).connectedNodes.await()
                     if (nodes.isNotEmpty()) {
-                        sb.appendLine("Watch connected: ${nodes.first().displayName}")
+                        val watchNode = nodes.first()
+                        sb.appendLine("Watch: ${watchNode.displayName}")
+
+                        // Set up a listener for the watch log response
+                        val messageClient = Wearable.getMessageClient(this@MainActivity)
+                        var watchLogs: String? = null
+                        val latch = java.util.concurrent.CountDownLatch(1)
+
+                        val listener = com.google.android.gms.wearable.MessageClient.OnMessageReceivedListener { event ->
+                            if (event.path == "/camera_remote/log_response") {
+                                watchLogs = String(event.data)
+                                latch.countDown()
+                            }
+                        }
+                        messageClient.addListener(listener)
+
+                        // Request logs from watch
+                        messageClient.sendMessage(
+                            watchNode.id,
+                            "/camera_remote/log_request",
+                            ByteArray(0)
+                        ).await()
+
+                        // Wait up to 5 seconds for watch response
+                        val received = latch.await(5, java.util.concurrent.TimeUnit.SECONDS)
+                        messageClient.removeListener(listener)
+
+                        if (received && watchLogs != null) {
+                            sb.appendLine(watchLogs)
+                        } else {
+                            sb.appendLine("(watch did not respond within 5s)")
+                        }
                     } else {
                         sb.appendLine("No watch connected")
                     }
                 } catch (e: Exception) {
-                    sb.appendLine("Watch check failed: ${e.message}")
+                    sb.appendLine("Watch log collection failed: ${e.message}")
                 }
 
                 // Service status
