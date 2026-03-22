@@ -34,13 +34,39 @@ import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
 
-const val DEFAULT_HAPTIC_DURATION_MS = 15
-const val DEFAULT_TIMER_SECONDS = 3
-
 class RemoteActivity : AppCompatActivity(), MessageClient.OnMessageReceivedListener, DataClient.OnDataChangedListener {
 
     companion object {
         private const val TAG = "RemoteActivity"
+
+        // Defaults
+        private const val DEFAULT_HAPTIC_DURATION_MS = 15
+        private const val DEFAULT_TIMER_SECONDS = 3
+
+        // Timing
+        private const val RECORDING_TIMER_INTERVAL_MS = 500L
+        private const val HEARTBEAT_INTERVAL_MS = 30_000L
+        private const val COUNTDOWN_TICK_MS = 1000L
+        private const val MS_PER_SECOND = 1000L
+        private const val SECONDS_PER_MINUTE = 60
+
+        // Timer duration cycle (long-press to cycle)
+        private val TIMER_DURATION_OPTIONS = intArrayOf(3, 5, 10)
+
+        // SharedPreferences
+        private const val PREFS_NAME = "watch_settings"
+        private const val KEY_HAPTIC_DURATION = "haptic_duration_ms"
+        private const val KEY_TIMER_SECONDS = "default_timer_seconds"
+        private const val KEY_VIBRATE_COUNTDOWN = "vibrate_on_countdown"
+
+        // Message/Data paths
+        private const val PATH_COMMAND = "/camera_remote"
+        private const val PATH_STATUS = "/camera_remote/status"
+        private const val PATH_SETTINGS = "/camera_remote/settings"
+        private const val PATH_PREVIEW = "/camera_remote/preview"
+
+        // Zoom
+        private const val ZOOM_INTERVAL_MS = 200L
     }
 
     private lateinit var binding: ActivityRemoteBinding
@@ -61,23 +87,22 @@ class RemoteActivity : AppCompatActivity(), MessageClient.OnMessageReceivedListe
     private val recordingTimerRunnable = object : Runnable {
         override fun run() {
             if (isRecording) {
-                val elapsed = (System.currentTimeMillis() - recordingStartTime) / 1000
-                val mins = elapsed / 60
-                val secs = elapsed % 60
+                val elapsed = (System.currentTimeMillis() - recordingStartTime) / MS_PER_SECOND
+                val mins = elapsed / SECONDS_PER_MINUTE
+                val secs = elapsed % SECONDS_PER_MINUTE
                 binding.tvStatus.text = "\u25CF REC ${String.format("%02d:%02d", mins, secs)}"
-                recordingTimerHandler.postDelayed(this, 500L)
+                recordingTimerHandler.postDelayed(this, RECORDING_TIMER_INTERVAL_MS)
             }
         }
     }
     private val zoomQueue = mutableListOf<String>()
     private var isProcessingZoom = false
     private var lastZoomSentTime = 0L
-    private val ZOOM_INTERVAL_MS = 200L
     private val heartbeatHandler = Handler(Looper.getMainLooper())
     private val heartbeatRunnable = object : Runnable {
         override fun run() {
             checkConnection()
-            heartbeatHandler.postDelayed(this, 30_000L)
+            heartbeatHandler.postDelayed(this, HEARTBEAT_INTERVAL_MS)
         }
     }
 
@@ -119,21 +144,21 @@ class RemoteActivity : AppCompatActivity(), MessageClient.OnMessageReceivedListe
 
     private fun loadSyncedSettings() {
         // Load from local cache first
-        val prefs = getSharedPreferences("watch_settings", MODE_PRIVATE)
-        hapticDurationMs = prefs.getInt("haptic_duration_ms", DEFAULT_HAPTIC_DURATION_MS).toLong()
-        timerSeconds = prefs.getInt("default_timer_seconds", DEFAULT_TIMER_SECONDS)
-        vibrateOnCountdown = prefs.getBoolean("vibrate_on_countdown", true)
+        val prefs = getSharedPreferences(PREFS_NAME, MODE_PRIVATE)
+        hapticDurationMs = prefs.getInt(KEY_HAPTIC_DURATION, DEFAULT_HAPTIC_DURATION_MS).toLong()
+        timerSeconds = prefs.getInt(KEY_TIMER_SECONDS, DEFAULT_TIMER_SECONDS)
+        vibrateOnCountdown = prefs.getBoolean(KEY_VIBRATE_COUNTDOWN, true)
 
         // Then try to load latest from DataClient
         try {
             Wearable.getDataClient(this).getDataItems()
                 .addOnSuccessListener { dataItems ->
                     for (item in dataItems) {
-                        if (item.uri.path == "/camera_remote/settings") {
+                        if (item.uri.path == PATH_SETTINGS) {
                             val dataMap = DataMapItem.fromDataItem(item).dataMap
-                            hapticDurationMs = dataMap.getInt("haptic_duration_ms", DEFAULT_HAPTIC_DURATION_MS).toLong()
-                            timerSeconds = dataMap.getInt("default_timer_seconds", DEFAULT_TIMER_SECONDS)
-                            vibrateOnCountdown = dataMap.getBoolean("vibrate_on_countdown", true)
+                            hapticDurationMs = dataMap.getInt(KEY_HAPTIC_DURATION, DEFAULT_HAPTIC_DURATION_MS).toLong()
+                            timerSeconds = dataMap.getInt(KEY_TIMER_SECONDS, DEFAULT_TIMER_SECONDS)
+                            vibrateOnCountdown = dataMap.getBoolean(KEY_VIBRATE_COUNTDOWN, true)
                             saveSettingsLocally()
                             Log.d(TAG, "Loaded settings: haptic=${hapticDurationMs}ms, timer=${timerSeconds}s, vibrateCountdown=$vibrateOnCountdown")
                         }
@@ -146,10 +171,10 @@ class RemoteActivity : AppCompatActivity(), MessageClient.OnMessageReceivedListe
     }
 
     private fun saveSettingsLocally() {
-        getSharedPreferences("watch_settings", MODE_PRIVATE).edit()
-            .putInt("haptic_duration_ms", hapticDurationMs.toInt())
-            .putInt("default_timer_seconds", timerSeconds)
-            .putBoolean("vibrate_on_countdown", vibrateOnCountdown)
+        getSharedPreferences(PREFS_NAME, MODE_PRIVATE).edit()
+            .putInt(KEY_HAPTIC_DURATION, hapticDurationMs.toInt())
+            .putInt(KEY_TIMER_SECONDS, timerSeconds)
+            .putBoolean(KEY_VIBRATE_COUNTDOWN, vibrateOnCountdown)
             .apply()
     }
 
@@ -180,10 +205,10 @@ class RemoteActivity : AppCompatActivity(), MessageClient.OnMessageReceivedListe
                 return@setOnClickListener
             }
             isCountdownActive = true
-            val totalMs = timerSeconds * 1000L
-            countdownTimer = object : CountDownTimer(totalMs, 1000) {
+            val totalMs = timerSeconds * COUNTDOWN_TICK_MS
+            countdownTimer = object : CountDownTimer(totalMs, COUNTDOWN_TICK_MS) {
                 override fun onTick(millisUntilFinished: Long) {
-                    val secondsLeft = (millisUntilFinished / 1000) + 1
+                    val secondsLeft = (millisUntilFinished / MS_PER_SECOND) + 1
                     runOnUiThread { binding.tvStatus.text = "Burst $secondsLeft\u2026" }
                     if (vibrateOnCountdown) vibrate()
                 }
@@ -263,9 +288,9 @@ class RemoteActivity : AppCompatActivity(), MessageClient.OnMessageReceivedListe
         countdownTimer?.cancel()
         isCountdownActive = true
         binding.tvStatus.text = "$timerSeconds"
-        countdownTimer = object : CountDownTimer(timerSeconds * 1000L, 1000L) {
+        countdownTimer = object : CountDownTimer(timerSeconds * COUNTDOWN_TICK_MS, COUNTDOWN_TICK_MS) {
             override fun onTick(millisUntilFinished: Long) {
-                val secondsLeft = (millisUntilFinished / 1000).toInt() + 1
+                val secondsLeft = (millisUntilFinished / MS_PER_SECOND).toInt() + 1
                 runOnUiThread {
                     binding.tvStatus.text = "$secondsLeft"
                 }
@@ -299,7 +324,7 @@ class RemoteActivity : AppCompatActivity(), MessageClient.OnMessageReceivedListe
             Log.e(TAG, "Failed to add listeners", e)
         }
         checkConnection()
-        heartbeatHandler.postDelayed(heartbeatRunnable, 30_000L)
+        heartbeatHandler.postDelayed(heartbeatRunnable, HEARTBEAT_INTERVAL_MS)
     }
 
     override fun onPause() {
@@ -392,7 +417,7 @@ class RemoteActivity : AppCompatActivity(), MessageClient.OnMessageReceivedListe
     }
 
     override fun onMessageReceived(messageEvent: MessageEvent) {
-        if (messageEvent.path == "/camera_remote/status") {
+        if (messageEvent.path == PATH_STATUS) {
             val status = String(messageEvent.data)
             Log.d(TAG, "Status received from phone: $status")
             if (status == "captured") captureCount++
@@ -404,7 +429,7 @@ class RemoteActivity : AppCompatActivity(), MessageClient.OnMessageReceivedListe
                 runOnUiThread {
                     binding.tvStatus.text = "\u25CF REC 00:00"
                     recordingTimerHandler.removeCallbacks(recordingTimerRunnable)
-                    recordingTimerHandler.postDelayed(recordingTimerRunnable, 500L)
+                    recordingTimerHandler.postDelayed(recordingTimerRunnable, RECORDING_TIMER_INTERVAL_MS)
                     vibrate()
                 }
                 return
@@ -494,15 +519,15 @@ class RemoteActivity : AppCompatActivity(), MessageClient.OnMessageReceivedListe
         for (event in dataEvents) {
             if (event.type == DataEvent.TYPE_CHANGED) {
                 when (event.dataItem.uri.path) {
-                    "/camera_remote/settings" -> {
+                    PATH_SETTINGS -> {
                         val dataMap = DataMapItem.fromDataItem(event.dataItem).dataMap
-                        hapticDurationMs = dataMap.getInt("haptic_duration_ms", DEFAULT_HAPTIC_DURATION_MS).toLong()
-                        timerSeconds = dataMap.getInt("default_timer_seconds", DEFAULT_TIMER_SECONDS)
-                        vibrateOnCountdown = dataMap.getBoolean("vibrate_on_countdown", true)
+                        hapticDurationMs = dataMap.getInt(KEY_HAPTIC_DURATION, DEFAULT_HAPTIC_DURATION_MS).toLong()
+                        timerSeconds = dataMap.getInt(KEY_TIMER_SECONDS, DEFAULT_TIMER_SECONDS)
+                        vibrateOnCountdown = dataMap.getBoolean(KEY_VIBRATE_COUNTDOWN, true)
                         saveSettingsLocally()
                         Log.d(TAG, "Settings updated: haptic=${hapticDurationMs}ms, timer=${timerSeconds}s, vibrateCountdown=$vibrateOnCountdown")
                     }
-                    "/camera_remote/preview" -> {
+                    PATH_PREVIEW -> {
                         val dataMap = DataMapItem.fromDataItem(event.dataItem).dataMap
                         val imageBytes = dataMap.getByteArray("image")
                         val uri = dataMap.getString("uri")

@@ -35,6 +35,7 @@ class MainActivity : AppCompatActivity() {
         private const val GITHUB_URL = "https://github.com/WitherredAway/CameraRemote"
         private const val DISCORD_URL = "https://discord.gg/gK6wQywwzb"
         private const val KOFI_URL = "https://ko-fi.com/wthrr"
+        private const val PERMISSION_REQUEST_CODE = 100
     }
 
     private lateinit var binding: ActivityMainBinding
@@ -122,7 +123,7 @@ class MainActivity : AppCompatActivity() {
         }
 
         if (needed.isNotEmpty()) {
-            ActivityCompat.requestPermissions(this, needed.toTypedArray(), 100)
+            ActivityCompat.requestPermissions(this, needed.toTypedArray(), PERMISSION_REQUEST_CODE)
         }
     }
 

@@ -8,7 +8,6 @@ import android.content.Intent
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.graphics.Path
-import android.net.Uri
 import android.os.Handler
 import android.os.Looper
 import android.provider.MediaStore
@@ -36,6 +35,34 @@ class CameraControlService : AccessibilityService() {
         var instance: CameraControlService? = null
             private set
         val isRunning: Boolean get() = instance != null
+
+        // Message/Data paths
+        private const val PATH_PREVIEW = "/camera_remote/preview"
+        private const val PATH_STATUS = "/camera_remote/status"
+
+        // Timing constants
+        private const val MODE_SWITCH_DELAY_MS = 800L
+        private const val FLASH_SUBMENU_RETRY_DELAY_MS = 500L
+        private const val PREVIEW_CAPTURE_DELAY_MS = 2500L
+        private const val BURST_CAPTURE_INTERVAL_MS = 500L
+        private const val BURST_CAPTURE_FLASH_INTERVAL_MS = 900L
+        private const val BURST_SHUTTER_RETRY_DELAY_MS = 100L
+        private const val ZOOM_GESTURE_DURATION_MS = 150L
+
+        // Zoom
+        private const val ZOOM_BASE_OFFSET_FRACTION = 0.1f
+        private const val ZOOM_MAX_STEPS = 5
+
+        // Flash submenu detection
+        private const val FLASH_SUBMENU_SCREEN_TOP_FRACTION = 3f / 10f
+        private const val FLASH_SUBMENU_MIN_NODE_SIZE = 10
+        private const val FLASH_SUBMENU_TOOLBAR_THRESHOLD = 150
+        private const val FLASH_SUBMENU_MAX_RETRIES = 1
+
+        // Preview image
+        private const val PREVIEW_IN_SAMPLE_SIZE = 4
+        private const val PREVIEW_MAX_DIMENSION = 300f
+        private const val PREVIEW_JPEG_QUALITY = 70
     }
 
     private val handler = Handler(Looper.getMainLooper())
@@ -262,7 +289,7 @@ class CameraControlService : AccessibilityService() {
                     } else {
                         sendStatusToWatch("shutter_not_found")
                     }
-                }, 800L)
+                }, MODE_SWITCH_DELAY_MS)
                 return
             }
         }
@@ -417,9 +444,9 @@ class CameraControlService : AccessibilityService() {
         val (screenWidth, screenHeight) = getScreenSize()
         val centerX = screenWidth / 2f
         val centerY = screenHeight / 2f
-        val baseOffset = screenWidth / 10f
-        val offset = baseOffset * steps.coerceIn(1, 5)
-        val duration = 150L
+        val baseOffset = screenWidth * ZOOM_BASE_OFFSET_FRACTION
+        val offset = baseOffset * steps.coerceIn(1, ZOOM_MAX_STEPS)
+        val duration = ZOOM_GESTURE_DURATION_MS
 
         // Zoom in = spread outward, zoom out = pinch inward
         val startOffset = if (zoomIn) offset / 2 else offset
@@ -587,8 +614,8 @@ class CameraControlService : AccessibilityService() {
             val bounds = android.graphics.Rect()
             node.getBoundsInScreen(bounds)
             // Submenu appears below the main toolbar — look for nodes in top 30%
-            if (bounds.top >= screenHeight * 3 / 10) continue
-            if (bounds.width() < 10 || bounds.height() < 10) continue
+            if (bounds.top >= screenHeight * FLASH_SUBMENU_SCREEN_TOP_FRACTION) continue
+            if (bounds.width() < FLASH_SUBMENU_MIN_NODE_SIZE || bounds.height() < FLASH_SUBMENU_MIN_NODE_SIZE) continue
 
             // Must contain "flash" in desc or text, or be a standalone on/off/auto
             val isFlashOption = contentDesc.contains("flash") || text.contains("flash")
@@ -601,7 +628,7 @@ class CameraControlService : AccessibilityService() {
 
         // Filter out the main flash button (it's in the top toolbar row, y < 200 typically)
         // Submenu items appear below the main toolbar
-        val submenuNodes = flashNodes.filter { it.bounds.top > 150 }
+        val submenuNodes = flashNodes.filter { it.bounds.top > FLASH_SUBMENU_TOOLBAR_THRESHOLD }
         val candidates = if (submenuNodes.size >= 2) submenuNodes else flashNodes
 
         if (candidates.size >= 2) {
@@ -620,10 +647,10 @@ class CameraControlService : AccessibilityService() {
         // No submenu found — retry once with longer delay (submenu may not have rendered yet)
         recycleNodes(allNodes)
         rootNode.recycle()
-        if (flashSubmenuRetries < 1) {
+        if (flashSubmenuRetries < FLASH_SUBMENU_MAX_RETRIES) {
             flashSubmenuRetries++
             Log.d(TAG, "Flash submenu not found, retrying (attempt $flashSubmenuRetries)")
-            handler.postDelayed({ selectFlashSubmenuOption() }, 500L)
+            handler.postDelayed({ selectFlashSubmenuOption() }, FLASH_SUBMENU_RETRY_DELAY_MS)
             return
         }
 
@@ -858,7 +885,7 @@ class CameraControlService : AccessibilityService() {
         doCapture()
         sendStatusToWatch("preview_capturing")
         // Wait for photo to save, then read and send preview
-        handler.postDelayed({ sendPreviewToWatch() }, 2500L)
+        handler.postDelayed({ sendPreviewToWatch() }, PREVIEW_CAPTURE_DELAY_MS)
     }
 
     private fun sendPreviewToWatch() {
@@ -883,13 +910,13 @@ class CameraControlService : AccessibilityService() {
                     Log.d(TAG, "sendPreviewToWatch: latest image uri=$uri")
 
                     val inputStream = contentResolver.openInputStream(uri)
-                    val options = BitmapFactory.Options().apply { inSampleSize = 4 }
+                    val options = BitmapFactory.Options().apply { inSampleSize = PREVIEW_IN_SAMPLE_SIZE }
                     val bitmap = BitmapFactory.decodeStream(inputStream, null, options)
                     inputStream?.close()
 
                     if (bitmap != null) {
                         val maxDim = maxOf(bitmap.width, bitmap.height)
-                        val scale = 300f / maxDim
+                        val scale = PREVIEW_MAX_DIMENSION / maxDim
                         val resized = Bitmap.createScaledBitmap(
                             bitmap,
                             (bitmap.width * scale).toInt(),
@@ -898,10 +925,10 @@ class CameraControlService : AccessibilityService() {
                         )
 
                         val baos = ByteArrayOutputStream()
-                        resized.compress(Bitmap.CompressFormat.JPEG, 70, baos)
+                        resized.compress(Bitmap.CompressFormat.JPEG, PREVIEW_JPEG_QUALITY, baos)
                         val imageBytes = baos.toByteArray()
 
-                        val request = PutDataMapRequest.create("/camera_remote/preview").apply {
+                        val request = PutDataMapRequest.create(PATH_PREVIEW).apply {
                             dataMap.putByteArray("image", imageBytes)
                             dataMap.putString("uri", uri.toString())
                             dataMap.putLong("timestamp", System.currentTimeMillis())
@@ -966,11 +993,15 @@ class CameraControlService : AccessibilityService() {
             sendStatusToWatch("burst_${current}_of_$total")
             Log.d(TAG, "burstCapture: shot $current/$total taken")
             // Wait before next shot to let camera process
-            handler.postDelayed({ burstCaptureNext(current + 1, total) }, 300L)
+            val interval = when (flashOn) {
+                true -> BURST_CAPTURE_FLASH_INTERVAL_MS
+                false -> BURST_CAPTURE_INTERVAL_MS
+            }
+            handler.postDelayed({ burstCaptureNext(current + 1, total) }, interval)
         } else {
             // Shutter not found yet, retry after a short delay (up to 2s)
             Log.d(TAG, "burstCapture: shutter not found for shot $current, retrying...")
-            handler.postDelayed({ burstCaptureNext(current, total) }, 100L)
+            handler.postDelayed({ burstCaptureNext(current, total) }, BURST_SHUTTER_RETRY_DELAY_MS)
         }
     }
 
@@ -1029,7 +1060,7 @@ class CameraControlService : AccessibilityService() {
             for (node in nodes) {
                 messageClient.sendMessage(
                     node.id,
-                    "/camera_remote/status",
+                    PATH_STATUS,
                     status.toByteArray()
                 ).addOnSuccessListener {
                     Log.d(TAG, "Status '$status' sent to watch ${node.displayName}")

@@ -15,6 +15,10 @@ class DeletePhotoActivity : Activity() {
         const val EXTRA_URI = "photo_uri"
         private const val TAG = "DeletePhotoActivity"
         private const val DELETE_REQUEST_CODE = 200
+        private const val WEARABLE_STATUS_PATH = "/camera_remote/status"
+        private const val STATUS_DELETE_FAILED = "preview_delete_failed"
+        private const val STATUS_DELETED = "preview_deleted"
+        private const val STATUS_DELETE_CANCELLED = "preview_delete_cancelled"
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -23,7 +27,7 @@ class DeletePhotoActivity : Activity() {
         val uriStr = intent.getStringExtra(EXTRA_URI)
         if (uriStr == null) {
             Log.e(TAG, "No URI provided")
-            sendStatus("preview_delete_failed")
+            sendStatus(STATUS_DELETE_FAILED)
             finish()
             return
         }
@@ -42,7 +46,7 @@ class DeletePhotoActivity : Activity() {
                 )
             } catch (e: Exception) {
                 Log.e(TAG, "Failed to create delete request", e)
-                sendStatus("preview_delete_failed")
+                sendStatus(STATUS_DELETE_FAILED)
                 finish()
             }
         } else {
@@ -50,14 +54,14 @@ class DeletePhotoActivity : Activity() {
             try {
                 val deleted = contentResolver.delete(uri, null, null)
                 if (deleted > 0) {
-                    sendStatus("preview_deleted")
+                    sendStatus(STATUS_DELETED)
                     Log.d(TAG, "Preview deleted: $uriStr")
                 } else {
-                    sendStatus("preview_delete_failed")
+                    sendStatus(STATUS_DELETE_FAILED)
                 }
             } catch (e: Exception) {
                 Log.e(TAG, "Failed to delete", e)
-                sendStatus("preview_delete_failed")
+                sendStatus(STATUS_DELETE_FAILED)
             }
             finish()
         }
@@ -67,10 +71,10 @@ class DeletePhotoActivity : Activity() {
         super.onActivityResult(requestCode, resultCode, data)
         if (requestCode == DELETE_REQUEST_CODE) {
             if (resultCode == RESULT_OK) {
-                sendStatus("preview_deleted")
+                sendStatus(STATUS_DELETED)
                 Log.d(TAG, "User approved deletion")
             } else {
-                sendStatus("preview_delete_cancelled")
+                sendStatus(STATUS_DELETE_CANCELLED)
                 Log.d(TAG, "User denied deletion")
             }
             finish()
@@ -83,7 +87,7 @@ class DeletePhotoActivity : Activity() {
             for (node in nodes) {
                 messageClient.sendMessage(
                     node.id,
-                    "/camera_remote/status",
+                    WEARABLE_STATUS_PATH,
                     status.toByteArray()
                 )
             }

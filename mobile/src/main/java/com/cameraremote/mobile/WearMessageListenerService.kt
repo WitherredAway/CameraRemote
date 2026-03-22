@@ -11,7 +11,15 @@ import com.google.android.gms.wearable.WearableListenerService
 class WearMessageListenerService : WearableListenerService() {
 
     companion object {
-        const val TAG = "WearMessageListener"
+        private const val TAG = "WearMessageListener"
+        private const val PATH_CAMERA_REMOTE = "/camera_remote"
+        private const val PATH_CAMERA_REMOTE_STATUS = "/camera_remote/status"
+        private const val COMMAND_OPEN_CAMERA = "open_camera"
+        private const val COMMAND_OPEN_VIDEO = "open_video"
+        private const val STATUS_VIDEO_CAMERA_OPENED = "video_camera_opened"
+        private const val STATUS_CAMERA_OPENED = "camera_opened"
+        private const val STATUS_CAMERA_OPEN_FAILED = "camera_open_failed"
+        private const val STATUS_SERVICE_NOT_ENABLED = "service_not_enabled"
     }
 
     override fun onCreate() {
@@ -26,7 +34,7 @@ class WearMessageListenerService : WearableListenerService() {
 
     override fun onMessageReceived(messageEvent: MessageEvent) {
         Log.d(TAG, "onMessageReceived: path=${messageEvent.path}, dataSize=${messageEvent.data.size}")
-        if (messageEvent.path == "/camera_remote") {
+        if (messageEvent.path == PATH_CAMERA_REMOTE) {
             val command = String(messageEvent.data)
             Log.d(TAG, "Received command from watch: $command")
 
@@ -40,8 +48,8 @@ class WearMessageListenerService : WearableListenerService() {
             } else {
                 Log.w(TAG, "AccessibilityService not running. Command ignored: $command")
                 // If open_camera or open_video was requested, we can still launch without service
-                if (command == "open_camera" || command == "open_video") {
-                    val action = if (command == "open_video")
+                if (command == COMMAND_OPEN_CAMERA || command == COMMAND_OPEN_VIDEO) {
+                    val action = if (command == COMMAND_OPEN_VIDEO)
                         android.provider.MediaStore.INTENT_ACTION_VIDEO_CAMERA
                     else
                         android.provider.MediaStore.INTENT_ACTION_STILL_IMAGE_CAMERA
@@ -49,13 +57,13 @@ class WearMessageListenerService : WearableListenerService() {
                         startActivity(Intent(action).apply {
                             addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                         })
-                        sendStatusToWatch(if (command == "open_video") "video_camera_opened" else "camera_opened")
+                        sendStatusToWatch(if (command == COMMAND_OPEN_VIDEO) STATUS_VIDEO_CAMERA_OPENED else STATUS_CAMERA_OPENED)
                     } catch (e: Exception) {
                         Log.e(TAG, "Failed to launch camera", e)
-                        sendStatusToWatch("camera_open_failed")
+                        sendStatusToWatch(STATUS_CAMERA_OPEN_FAILED)
                     }
                 } else {
-                    sendStatusToWatch("service_not_enabled")
+                    sendStatusToWatch(STATUS_SERVICE_NOT_ENABLED)
                 }
             }
         }
@@ -68,7 +76,7 @@ class WearMessageListenerService : WearableListenerService() {
                     Wearable.getMessageClient(this)
                         .sendMessage(
                             node.id,
-                            "/camera_remote/status",
+                            PATH_CAMERA_REMOTE_STATUS,
                             status.toByteArray()
                         )
                 }

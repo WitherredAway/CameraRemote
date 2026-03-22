@@ -34,6 +34,26 @@ class CameraRemoteTileService : androidx.wear.tiles.TileService() {
         private const val COLOR_SWITCH = 0xFFB0BEC5.toInt()
         private const val COLOR_TIMER = 0xFFFFCC80.toInt()
 
+        // Command strings
+        private const val CMD_OPEN_CAMERA = "open_camera"
+        private const val CMD_CAPTURE = "capture"
+        private const val CMD_OPEN_VIDEO = "open_video"
+        private const val CMD_TOGGLE_FLASH = "toggle_flash"
+        private const val CMD_SWITCH_CAMERA = "switch_camera"
+        private const val CMD_CAPTURE_TIMER = "capture_timer"
+
+        // Extra key
+        private const val EXTRA_COMMAND = "command"
+
+        // Dimensions
+        private const val BUTTON_SIZE = 44f
+        private const val ICON_SIZE = 20f
+        private const val BUTTON_CORNER_RADIUS = 22f
+        private const val ROW_ITEM_SPACING = 8f
+        private const val LABEL_SPACING = 3f
+        private const val TITLE_FONT_SIZE = 13f
+        private const val LABEL_FONT_SIZE = 10f
+
         // Resource IDs for icons
         private const val RES_IC_CAMERA = "ic_camera"
         private const val RES_IC_SHUTTER = "ic_shutter"
@@ -113,15 +133,15 @@ class CameraRemoteTileService : androidx.wear.tiles.TileService() {
                     .addContent(title())
                     .addContent(spacer(8f))
                     .addContent(row(
-                        button("Camera", "open_camera", COLOR_CAMERA, RES_IC_CAMERA),
-                        button("Snap", "capture", COLOR_SHUTTER, RES_IC_SHUTTER),
-                        button("Video", "open_video", COLOR_VIDEO, RES_IC_VIDEO)
+                        button("Camera", CMD_OPEN_CAMERA, COLOR_CAMERA, RES_IC_CAMERA),
+                        button("Snap", CMD_CAPTURE, COLOR_SHUTTER, RES_IC_SHUTTER),
+                        button("Video", CMD_OPEN_VIDEO, COLOR_VIDEO, RES_IC_VIDEO)
                     ))
                     .addContent(spacer(6f))
                     .addContent(row(
-                        button("Flash", "toggle_flash", COLOR_FLASH, RES_IC_FLASH),
-                        button("Flip", "switch_camera", COLOR_SWITCH, RES_IC_FLIP),
-                        button("Timer", "capture_timer", COLOR_TIMER, RES_IC_TIMER)
+                        button("Flash", CMD_TOGGLE_FLASH, COLOR_FLASH, RES_IC_FLASH),
+                        button("Flip", CMD_SWITCH_CAMERA, COLOR_SWITCH, RES_IC_FLIP),
+                        button("Timer", CMD_CAPTURE_TIMER, COLOR_TIMER, RES_IC_TIMER)
                     ))
                     .build()
             )
@@ -133,7 +153,7 @@ class CameraRemoteTileService : androidx.wear.tiles.TileService() {
             .setText("Camera Remote")
             .setFontStyle(
                 LayoutElementBuilders.FontStyle.Builder()
-                    .setSize(sp(13f))
+                    .setSize(sp(TITLE_FONT_SIZE))
                     .setColor(argb(COLOR_TITLE))
                     .setWeight(LayoutElementBuilders.FONT_WEIGHT_BOLD)
                     .build()
@@ -149,7 +169,7 @@ class CameraRemoteTileService : androidx.wear.tiles.TileService() {
         val builder = LayoutElementBuilders.Row.Builder()
         items.forEachIndexed { i, item ->
             if (i > 0) builder.addContent(
-                LayoutElementBuilders.Spacer.Builder().setWidth(dp(8f)).build()
+                LayoutElementBuilders.Spacer.Builder().setWidth(dp(ROW_ITEM_SPACING)).build()
             )
             builder.addContent(item)
         }
@@ -168,7 +188,7 @@ class CameraRemoteTileService : androidx.wear.tiles.TileService() {
                     .setPackageName(packageName)
                     .setClassName(TILE_ACTION_CLASS)
                     .addKeyToExtraMapping(
-                        "command",
+                        EXTRA_COMMAND,
                         ActionBuilders.AndroidStringExtra.Builder()
                             .setValue(command)
                             .build()
@@ -181,8 +201,8 @@ class CameraRemoteTileService : androidx.wear.tiles.TileService() {
             .setHorizontalAlignment(LayoutElementBuilders.HORIZONTAL_ALIGN_CENTER)
             .addContent(
                 LayoutElementBuilders.Box.Builder()
-                    .setWidth(dp(44f))
-                    .setHeight(dp(44f))
+                    .setWidth(dp(BUTTON_SIZE))
+                    .setHeight(dp(BUTTON_SIZE))
                     .setHorizontalAlignment(LayoutElementBuilders.HORIZONTAL_ALIGN_CENTER)
                     .setVerticalAlignment(LayoutElementBuilders.VERTICAL_ALIGN_CENTER)
                     .setModifiers(
@@ -198,7 +218,7 @@ class CameraRemoteTileService : androidx.wear.tiles.TileService() {
                                     .setColor(argb(bgColor))
                                     .setCorner(
                                         ModifiersBuilders.Corner.Builder()
-                                            .setRadius(dp(22f))
+                                            .setRadius(dp(BUTTON_CORNER_RADIUS))
                                             .build()
                                     )
                                     .build()
@@ -208,15 +228,15 @@ class CameraRemoteTileService : androidx.wear.tiles.TileService() {
                     .addContent(
                         LayoutElementBuilders.Image.Builder()
                             .setResourceId(iconResId)
-                            .setWidth(dp(20f))
-                            .setHeight(dp(20f))
+                            .setWidth(dp(ICON_SIZE))
+                            .setHeight(dp(ICON_SIZE))
                             .build()
                     )
                     .build()
             )
             .addContent(
                 LayoutElementBuilders.Spacer.Builder()
-                    .setHeight(dp(3f))
+                    .setHeight(dp(LABEL_SPACING))
                     .build()
             )
             .addContent(
@@ -224,7 +244,7 @@ class CameraRemoteTileService : androidx.wear.tiles.TileService() {
                     .setText(label)
                     .setFontStyle(
                         LayoutElementBuilders.FontStyle.Builder()
-                            .setSize(sp(10f))
+                            .setSize(sp(LABEL_FONT_SIZE))
                             .setColor(argb(COLOR_LABEL))
                             .build()
                     )

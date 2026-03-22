@@ -12,6 +12,35 @@ import com.google.android.material.switchmaterial.SwitchMaterial
 
 class SettingsActivity : AppCompatActivity() {
 
+    companion object {
+        private const val TAG = "SettingsActivity"
+
+        // Wearable Data Layer
+        private const val WEARABLE_SETTINGS_PATH = "/camera_remote/settings"
+        private const val KEY_HAPTIC_DURATION_MS = "haptic_duration_ms"
+        private const val KEY_DEFAULT_TIMER_SECONDS = "default_timer_seconds"
+        private const val KEY_VIBRATE_ON_COUNTDOWN = "vibrate_on_countdown"
+        private const val KEY_TIMESTAMP = "timestamp"
+
+        // Validation ranges — Camera Control
+        private const val CAMERA_LAUNCH_DELAY_MIN_MS = 100
+        private const val CAMERA_LAUNCH_DELAY_MAX_MS = 10000
+        private const val BURST_COUNT_MIN = 1
+        private const val BURST_COUNT_MAX = 50
+        private const val FALLBACK_POSITION_MIN = 10
+        private const val FALLBACK_POSITION_MAX = 99
+        private const val GESTURE_TAP_DURATION_MIN_MS = 10
+        private const val GESTURE_TAP_DURATION_MAX_MS = 500
+        private const val FLASH_SUBMENU_DELAY_MIN_MS = 50
+        private const val FLASH_SUBMENU_DELAY_MAX_MS = 2000
+
+        // Validation ranges — Watch
+        private const val HAPTIC_DURATION_MIN_MS = 5
+        private const val HAPTIC_DURATION_MAX_MS = 500
+        private const val TIMER_DURATION_MIN_SEC = 1
+        private const val TIMER_DURATION_MAX_SEC = 60
+    }
+
     private lateinit var settings: SettingsManager
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -75,50 +104,50 @@ class SettingsActivity : AppCompatActivity() {
         saveButton.setOnClickListener {
             // Validate Camera Launch Delay
             val launchDelay = cameraLaunchDelayInput.text.toString().trim().toIntOrNull()
-            if (launchDelay == null || launchDelay < 100 || launchDelay > 10000) {
-                Toast.makeText(this, "Camera launch delay must be between 100 and 10000 ms", Toast.LENGTH_SHORT).show()
+            if (launchDelay == null || launchDelay < CAMERA_LAUNCH_DELAY_MIN_MS || launchDelay > CAMERA_LAUNCH_DELAY_MAX_MS) {
+                Toast.makeText(this, "Camera launch delay must be between $CAMERA_LAUNCH_DELAY_MIN_MS and $CAMERA_LAUNCH_DELAY_MAX_MS ms", Toast.LENGTH_SHORT).show()
                 return@setOnClickListener
             }
 
             // Validate Burst Count
             val burstCount = burstCountInput.text.toString().trim().toIntOrNull()
-            if (burstCount == null || burstCount < 1 || burstCount > 50) {
-                Toast.makeText(this, "Burst photo count must be between 1 and 50", Toast.LENGTH_SHORT).show()
+            if (burstCount == null || burstCount < BURST_COUNT_MIN || burstCount > BURST_COUNT_MAX) {
+                Toast.makeText(this, "Burst photo count must be between $BURST_COUNT_MIN and $BURST_COUNT_MAX", Toast.LENGTH_SHORT).show()
                 return@setOnClickListener
             }
 
             // Validate Fallback Position
             val fallbackPos = fallbackPositionInput.text.toString().trim().toIntOrNull()
-            if (fallbackPos == null || fallbackPos !in 10..99) {
-                Toast.makeText(this, "Fallback position must be between 10 and 99%", Toast.LENGTH_SHORT).show()
+            if (fallbackPos == null || fallbackPos !in FALLBACK_POSITION_MIN..FALLBACK_POSITION_MAX) {
+                Toast.makeText(this, "Fallback position must be between $FALLBACK_POSITION_MIN and $FALLBACK_POSITION_MAX%", Toast.LENGTH_SHORT).show()
                 return@setOnClickListener
             }
 
             // Validate Gesture Tap Duration
             val gestureDur = gestureTapDurationInput.text.toString().trim().toIntOrNull()
-            if (gestureDur == null || gestureDur < 10 || gestureDur > 500) {
-                Toast.makeText(this, "Gesture tap duration must be between 10 and 500 ms", Toast.LENGTH_SHORT).show()
+            if (gestureDur == null || gestureDur < GESTURE_TAP_DURATION_MIN_MS || gestureDur > GESTURE_TAP_DURATION_MAX_MS) {
+                Toast.makeText(this, "Gesture tap duration must be between $GESTURE_TAP_DURATION_MIN_MS and $GESTURE_TAP_DURATION_MAX_MS ms", Toast.LENGTH_SHORT).show()
                 return@setOnClickListener
             }
 
             // Validate Flash Submenu Delay
             val flashDelay = flashSubmenuDelayInput.text.toString().trim().toIntOrNull()
-            if (flashDelay == null || flashDelay < 50 || flashDelay > 2000) {
-                Toast.makeText(this, "Flash submenu delay must be between 50 and 2000 ms", Toast.LENGTH_SHORT).show()
+            if (flashDelay == null || flashDelay < FLASH_SUBMENU_DELAY_MIN_MS || flashDelay > FLASH_SUBMENU_DELAY_MAX_MS) {
+                Toast.makeText(this, "Flash submenu delay must be between $FLASH_SUBMENU_DELAY_MIN_MS and $FLASH_SUBMENU_DELAY_MAX_MS ms", Toast.LENGTH_SHORT).show()
                 return@setOnClickListener
             }
 
             // Validate Haptic Duration
             val hapticDur = hapticDurationInput.text.toString().trim().toIntOrNull()
-            if (hapticDur == null || hapticDur < 5 || hapticDur > 500) {
-                Toast.makeText(this, "Haptic duration must be between 5 and 500 ms", Toast.LENGTH_SHORT).show()
+            if (hapticDur == null || hapticDur < HAPTIC_DURATION_MIN_MS || hapticDur > HAPTIC_DURATION_MAX_MS) {
+                Toast.makeText(this, "Haptic duration must be between $HAPTIC_DURATION_MIN_MS and $HAPTIC_DURATION_MAX_MS ms", Toast.LENGTH_SHORT).show()
                 return@setOnClickListener
             }
 
             // Validate Default Timer
             val timerSec = defaultTimerInput.text.toString().trim().toIntOrNull()
-            if (timerSec == null || timerSec < 1 || timerSec > 60) {
-                Toast.makeText(this, "Timer duration must be between 1 and 60 seconds", Toast.LENGTH_SHORT).show()
+            if (timerSec == null || timerSec < TIMER_DURATION_MIN_SEC || timerSec > TIMER_DURATION_MAX_SEC) {
+                Toast.makeText(this, "Timer duration must be between $TIMER_DURATION_MIN_SEC and $TIMER_DURATION_MAX_SEC seconds", Toast.LENGTH_SHORT).show()
                 return@setOnClickListener
             }
 
@@ -144,22 +173,22 @@ class SettingsActivity : AppCompatActivity() {
 
     private fun syncWatchSettings() {
         try {
-            val putReq = com.google.android.gms.wearable.PutDataMapRequest.create("/camera_remote/settings").apply {
-                dataMap.putInt("haptic_duration_ms", settings.getHapticDurationMs())
-                dataMap.putInt("default_timer_seconds", settings.getDefaultTimerSeconds())
-                dataMap.putBoolean("vibrate_on_countdown", settings.isVibrateOnCountdownEnabled())
-                dataMap.putLong("timestamp", System.currentTimeMillis())
+            val putReq = com.google.android.gms.wearable.PutDataMapRequest.create(WEARABLE_SETTINGS_PATH).apply {
+                dataMap.putInt(KEY_HAPTIC_DURATION_MS, settings.getHapticDurationMs())
+                dataMap.putInt(KEY_DEFAULT_TIMER_SECONDS, settings.getDefaultTimerSeconds())
+                dataMap.putBoolean(KEY_VIBRATE_ON_COUNTDOWN, settings.isVibrateOnCountdownEnabled())
+                dataMap.putLong(KEY_TIMESTAMP, System.currentTimeMillis())
             }
             com.google.android.gms.wearable.Wearable.getDataClient(this)
                 .putDataItem(putReq.asPutDataRequest().setUrgent())
                 .addOnSuccessListener {
-                    android.util.Log.d("SettingsActivity", "Watch settings synced")
+                    android.util.Log.d(TAG, "Watch settings synced")
                 }
                 .addOnFailureListener { e ->
-                    android.util.Log.e("SettingsActivity", "Failed to sync watch settings", e)
+                    android.util.Log.e(TAG, "Failed to sync watch settings", e)
                 }
         } catch (e: Exception) {
-            android.util.Log.e("SettingsActivity", "Failed to sync watch settings", e)
+            android.util.Log.e(TAG, "Failed to sync watch settings", e)
         }
     }
 }

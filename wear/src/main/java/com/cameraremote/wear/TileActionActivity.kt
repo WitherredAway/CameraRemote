@@ -18,6 +18,11 @@ class TileActionActivity : AppCompatActivity() {
 
     companion object {
         private const val TAG = "TileActionActivity"
+        private const val EXTRA_COMMAND = "command"
+        private const val PREFS_NAME = "watch_settings"
+        private const val KEY_HAPTIC_DURATION = "haptic_duration_ms"
+        private const val PATH_COMMAND = "/camera_remote"
+        private const val DEFAULT_HAPTIC_DURATION_MS = 15
     }
 
     private val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
@@ -25,7 +30,7 @@ class TileActionActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        val command = intent.getStringExtra("command") ?: run {
+        val command = intent.getStringExtra(EXTRA_COMMAND) ?: run {
             Log.w(TAG, "No command in intent")
             finish()
             return
@@ -42,7 +47,7 @@ class TileActionActivity : AppCompatActivity() {
                 val nodes = Wearable.getNodeClient(this@TileActionActivity).connectedNodes.await()
                 val messageClient = Wearable.getMessageClient(this@TileActionActivity)
                 for (node in nodes) {
-                    messageClient.sendMessage(node.id, "/camera_remote", command.toByteArray()).await()
+                    messageClient.sendMessage(node.id, PATH_COMMAND, command.toByteArray()).await()
                     Log.d(TAG, "Command '$command' sent to ${node.displayName}")
                 }
             } catch (e: Exception) {
@@ -62,8 +67,8 @@ class TileActionActivity : AppCompatActivity() {
                 @Suppress("DEPRECATION")
                 getSystemService(Vibrator::class.java)
             }
-            val prefs = getSharedPreferences("watch_settings", MODE_PRIVATE)
-            val durationMs = prefs.getInt("haptic_duration_ms", DEFAULT_HAPTIC_DURATION_MS).toLong()
+            val prefs = getSharedPreferences(PREFS_NAME, MODE_PRIVATE)
+            val durationMs = prefs.getInt(KEY_HAPTIC_DURATION, DEFAULT_HAPTIC_DURATION_MS).toLong()
             vibrator?.vibrate(VibrationEffect.createOneShot(durationMs, VibrationEffect.DEFAULT_AMPLITUDE))
         } catch (e: Exception) {
             Log.w(TAG, "Vibration failed", e)
