@@ -490,7 +490,7 @@ class RemoteActivity : AppCompatActivity(), MessageClient.OnMessageReceivedListe
                 val cmd = zoomQueue.removeAt(0)
                 sendCommand(cmd)
                 if (zoomQueue.isNotEmpty()) {
-                    heartbeatHandler.postDelayed(this, 80L)
+                    heartbeatHandler.postDelayed(this, 200L)
                 } else {
                     isProcessingZoom = false
                 }
