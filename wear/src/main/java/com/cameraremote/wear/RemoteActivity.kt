@@ -7,7 +7,6 @@ import android.os.Vibrator
 import android.os.VibratorManager
 import android.util.Log
 import android.view.MotionEvent
-import android.widget.ScrollView
 import androidx.appcompat.app.AppCompatActivity
 import com.cameraremote.wear.databinding.ActivityRemoteBinding
 import com.google.android.gms.wearable.MessageClient
@@ -61,7 +60,7 @@ class RemoteActivity : AppCompatActivity(), MessageClient.OnMessageReceivedListe
         binding.scrollView.requestFocus()
         binding.scrollView.setOnGenericMotionListener { _, event ->
             if (event.action == MotionEvent.ACTION_SCROLL) {
-                val delta = -event.getAxisValue(MotionEvent.AXIS_SCROLL) * 50
+                val delta = -event.getAxisValue(MotionEvent.AXIS_SCROLL) * 200f
                 binding.scrollView.smoothScrollBy(0, delta.toInt())
                 true
             } else false
@@ -100,20 +99,17 @@ class RemoteActivity : AppCompatActivity(), MessageClient.OnMessageReceivedListe
                 val nodes = Wearable.getNodeClient(this@RemoteActivity).connectedNodes.await()
                 runOnUiThread {
                     if (nodes.isNotEmpty()) {
-                        binding.statusCard.setBackgroundResource(R.drawable.bg_status_active)
-                        binding.statusIcon.setImageResource(R.drawable.ic_check_circle)
+                        binding.tvConnection.setBackgroundResource(R.drawable.bg_status_active)
                         binding.tvConnection.text = "Connected to ${nodes.first().displayName}"
                     } else {
-                        binding.statusCard.setBackgroundResource(R.drawable.bg_status_inactive)
-                        binding.statusIcon.setImageResource(R.drawable.ic_error_circle)
+                        binding.tvConnection.setBackgroundResource(R.drawable.bg_status_inactive)
                         binding.tvConnection.text = "No phone connected"
                     }
                 }
             } catch (e: Exception) {
                 Log.e(TAG, "Failed to check connection", e)
                 runOnUiThread {
-                    binding.statusCard.setBackgroundResource(R.drawable.bg_status_inactive)
-                    binding.statusIcon.setImageResource(R.drawable.ic_error_circle)
+                    binding.tvConnection.setBackgroundResource(R.drawable.bg_status_inactive)
                     binding.tvConnection.text = "Connection error"
                 }
             }

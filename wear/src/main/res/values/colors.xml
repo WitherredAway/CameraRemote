@@ -1,4 +1,35 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <color name="ic_launcher_background">#FF1E1E1E</color>
+    <color name="ic_launcher_background">#FF1B1B1B</color>
+
+    <!-- Surface colors -->
+    <color name="surface">#1B1B1B</color>
+    <color name="surface_container">#2B2B2B</color>
+    <color name="surface_bright">#3B3B3B</color>
+    <color name="on_surface">#E6E1E5</color>
+    <color name="on_surface_variant">#CAC4D0</color>
+    <color name="outline">#938F99</color>
+
+    <!-- Theme accent colors -->
+    <color name="primary">#D0BCFF</color>
+    <color name="on_primary">#381E72</color>
+    <color name="secondary">#CCC2DC</color>
+    <color name="tertiary">#EFB8C8</color>
+
+    <!-- Button accent colors -->
+    <color name="btn_camera">#B388FF</color>
+    <color name="btn_capture">#FF5252</color>
+    <color name="btn_timer">#FFD740</color>
+    <color name="btn_flash">#FFAB40</color>
+    <color name="btn_switch">#69F0AE</color>
+    <color name="btn_video">#448AFF</color>
+
+    <!-- Status colors -->
+    <color name="status_green">#4CAF50</color>
+    <color name="status_red">#F44336</color>
+    <color name="status_bg_active">#1A4CAF50</color>
+    <color name="status_bg_inactive">#1AF44336</color>
+
+    <!-- Ripple -->
+    <color name="ripple_white">#40FFFFFF</color>
 </resources>
