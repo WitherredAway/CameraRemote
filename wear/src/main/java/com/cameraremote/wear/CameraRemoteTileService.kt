@@ -17,20 +17,19 @@ import com.google.common.util.concurrent.ListenableFuture
 class CameraRemoteTileService : androidx.wear.tiles.TileService() {
 
     companion object {
-        private const val RESOURCES_VERSION = "2"
+        private const val RESOURCES_VERSION = "3"
 
-        // Match app theme colors
-        private const val COLOR_SURFACE = 0xFF1B1B1B.toInt()
-        private const val COLOR_ON_SURFACE = 0xFFE6E1E5.toInt()
-        private const val COLOR_PRIMARY = 0xFFD0BCFF.toInt()
+        private const val COLOR_BG = 0xFF000000.toInt()
+        private const val COLOR_LABEL = 0xFFCAC4D0.toInt()
+        private const val COLOR_TITLE = 0xFFD0BCFF.toInt()
 
-        // Pastel button colors (matching circle buttons in app — from colors.xml)
-        private const val COLOR_BTN_CAMERA = 0xFF90CAF9.toInt()  // blue
-        private const val COLOR_BTN_CAPTURE = 0xFFF5F5F5.toInt() // white/shutter
-        private const val COLOR_BTN_TIMER = 0xFFFFCC80.toInt()   // orange
-        private const val COLOR_BTN_FLASH = 0xFFFFE082.toInt()   // yellow
-        private const val COLOR_BTN_SWITCH = 0xFFB0BEC5.toInt()  // blue-grey
-        private const val COLOR_BTN_VIDEO = 0xFFEF9A9A.toInt()   // red
+        // Button colors (from colors.xml)
+        private const val COLOR_SHUTTER = 0xFFF5F5F5.toInt()
+        private const val COLOR_CAMERA = 0xFF90CAF9.toInt()
+        private const val COLOR_VIDEO = 0xFFEF9A9A.toInt()
+        private const val COLOR_FLASH = 0xFFFFE082.toInt()
+        private const val COLOR_SWITCH = 0xFFB0BEC5.toInt()
+        private const val COLOR_TIMER = 0xFFFFCC80.toInt()
     }
 
     override fun onTileRequest(requestParams: RequestBuilders.TileRequest): ListenableFuture<TileBuilders.Tile> {
@@ -70,7 +69,7 @@ class CameraRemoteTileService : androidx.wear.tiles.TileService() {
                 ModifiersBuilders.Modifiers.Builder()
                     .setBackground(
                         ModifiersBuilders.Background.Builder()
-                            .setColor(argb(COLOR_SURFACE))
+                            .setColor(argb(COLOR_BG))
                             .build()
                     )
                     .build()
@@ -79,69 +78,59 @@ class CameraRemoteTileService : androidx.wear.tiles.TileService() {
                 LayoutElementBuilders.Column.Builder()
                     .setWidth(expand())
                     .setHorizontalAlignment(LayoutElementBuilders.HORIZONTAL_ALIGN_CENTER)
-                    .addContent(buildTitle())
-                    .addContent(buildSpacer(6f))
-                    .addContent(buildTopRow())
-                    .addContent(buildSpacer(6f))
-                    .addContent(buildBottomRow())
+                    .addContent(spacer(10f))
+                    .addContent(title())
+                    .addContent(spacer(8f))
+                    .addContent(row(
+                        button("Camera", "open_camera", COLOR_CAMERA),
+                        button("Snap", "capture", COLOR_SHUTTER),
+                        button("Video", "open_video", COLOR_VIDEO)
+                    ))
+                    .addContent(spacer(6f))
+                    .addContent(row(
+                        button("Flash", "toggle_flash", COLOR_FLASH),
+                        button("Flip", "switch_camera", COLOR_SWITCH),
+                        button("Timer", "capture_timer", COLOR_TIMER)
+                    ))
                     .build()
             )
             .build()
     }
 
-    private fun buildTitle(): LayoutElementBuilders.LayoutElement {
+    private fun title(): LayoutElementBuilders.LayoutElement {
         return LayoutElementBuilders.Text.Builder()
             .setText("Camera Remote")
             .setFontStyle(
                 LayoutElementBuilders.FontStyle.Builder()
-                    .setSize(sp(12f))
-                    .setColor(argb(COLOR_PRIMARY))
+                    .setSize(sp(13f))
+                    .setColor(argb(COLOR_TITLE))
                     .setWeight(LayoutElementBuilders.FONT_WEIGHT_BOLD)
                     .build()
             )
             .build()
     }
 
-    private fun buildSpacer(height: Float): LayoutElementBuilders.LayoutElement {
-        return LayoutElementBuilders.Spacer.Builder()
-            .setHeight(dp(height))
-            .build()
+    private fun spacer(h: Float): LayoutElementBuilders.LayoutElement {
+        return LayoutElementBuilders.Spacer.Builder().setHeight(dp(h)).build()
     }
 
-    // Top row: Camera + Video (matching 9 and 3 o'clock)
-    private fun buildTopRow(): LayoutElementBuilders.LayoutElement {
-        return LayoutElementBuilders.Row.Builder()
-            .addContent(buildTileButton("Camera", "open_camera", COLOR_BTN_CAMERA))
-            .addContent(buildHSpacer())
-            .addContent(buildTileButton("Snap", "capture", COLOR_BTN_CAPTURE))
-            .addContent(buildHSpacer())
-            .addContent(buildTileButton("Video", "open_video", COLOR_BTN_VIDEO))
-            .build()
+    private fun row(vararg items: LayoutElementBuilders.LayoutElement): LayoutElementBuilders.LayoutElement {
+        val builder = LayoutElementBuilders.Row.Builder()
+        items.forEachIndexed { i, item ->
+            if (i > 0) builder.addContent(
+                LayoutElementBuilders.Spacer.Builder().setWidth(dp(8f)).build()
+            )
+            builder.addContent(item)
+        }
+        return builder.build()
     }
 
-    // Bottom row: Timer + Flip + Flash
-    private fun buildBottomRow(): LayoutElementBuilders.LayoutElement {
-        return LayoutElementBuilders.Row.Builder()
-            .addContent(buildTileButton("Timer", "capture_timer", COLOR_BTN_TIMER))
-            .addContent(buildHSpacer())
-            .addContent(buildTileButton("Flip", "switch_camera", COLOR_BTN_SWITCH))
-            .addContent(buildHSpacer())
-            .addContent(buildTileButton("Flash", "toggle_flash", COLOR_BTN_FLASH))
-            .build()
-    }
-
-    private fun buildHSpacer(): LayoutElementBuilders.LayoutElement {
-        return LayoutElementBuilders.Spacer.Builder()
-            .setWidth(dp(6f))
-            .build()
-    }
-
-    private fun buildTileButton(
+    private fun button(
         label: String,
         command: String,
         bgColor: Int
     ): LayoutElementBuilders.LayoutElement {
-        val launchAction = ActionBuilders.LaunchAction.Builder()
+        val action = ActionBuilders.LaunchAction.Builder()
             .setAndroidActivity(
                 ActionBuilders.AndroidActivity.Builder()
                     .setPackageName(packageName)
@@ -156,27 +145,28 @@ class CameraRemoteTileService : androidx.wear.tiles.TileService() {
             )
             .build()
 
-        val clickable = ModifiersBuilders.Clickable.Builder()
-            .setId(command)
-            .setOnClick(launchAction)
-            .build()
-
-        // Circle button with label below
         return LayoutElementBuilders.Column.Builder()
             .setHorizontalAlignment(LayoutElementBuilders.HORIZONTAL_ALIGN_CENTER)
             .addContent(
                 LayoutElementBuilders.Box.Builder()
-                    .setWidth(dp(40f))
-                    .setHeight(dp(40f))
+                    .setWidth(dp(44f))
+                    .setHeight(dp(44f))
+                    .setHorizontalAlignment(LayoutElementBuilders.HORIZONTAL_ALIGN_CENTER)
+                    .setVerticalAlignment(LayoutElementBuilders.VERTICAL_ALIGN_CENTER)
                     .setModifiers(
                         ModifiersBuilders.Modifiers.Builder()
-                            .setClickable(clickable)
+                            .setClickable(
+                                ModifiersBuilders.Clickable.Builder()
+                                    .setId(command)
+                                    .setOnClick(action)
+                                    .build()
+                            )
                             .setBackground(
                                 ModifiersBuilders.Background.Builder()
                                     .setColor(argb(bgColor))
                                     .setCorner(
                                         ModifiersBuilders.Corner.Builder()
-                                            .setRadius(dp(20f))
+                                            .setRadius(dp(22f))
                                             .build()
                                     )
                                     .build()
@@ -187,7 +177,7 @@ class CameraRemoteTileService : androidx.wear.tiles.TileService() {
             )
             .addContent(
                 LayoutElementBuilders.Spacer.Builder()
-                    .setHeight(dp(2f))
+                    .setHeight(dp(3f))
                     .build()
             )
             .addContent(
@@ -195,8 +185,8 @@ class CameraRemoteTileService : androidx.wear.tiles.TileService() {
                     .setText(label)
                     .setFontStyle(
                         LayoutElementBuilders.FontStyle.Builder()
-                            .setSize(sp(9f))
-                            .setColor(argb(COLOR_ON_SURFACE))
+                            .setSize(sp(10f))
+                            .setColor(argb(COLOR_LABEL))
                             .build()
                     )
                     .build()
