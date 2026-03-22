@@ -153,21 +153,19 @@ class CameraControlService : AccessibilityService() {
 
     private fun openCamera() {
         try {
-            // CLEAR_TASK forces the camera app to restart fresh instead of
-            // resuming in its last mode (which might be video)
             val intent = Intent(MediaStore.INTENT_ACTION_STILL_IMAGE_CAMERA).apply {
-                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK)
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
             }
-            Log.d(TAG, "openCamera: launching STILL_IMAGE_CAMERA with CLEAR_TASK")
+            Log.d(TAG, "openCamera: launching STILL_IMAGE_CAMERA intent")
             startActivity(intent)
             sendStatusToWatch("camera_opened")
         } catch (e: Exception) {
             Log.e(TAG, "Failed to open camera with STILL_IMAGE intent", e)
             try {
                 val fallback = Intent(MediaStore.ACTION_IMAGE_CAPTURE).apply {
-                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK)
+                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                 }
-                Log.d(TAG, "openCamera: trying IMAGE_CAPTURE fallback with CLEAR_TASK")
+                Log.d(TAG, "openCamera: trying IMAGE_CAPTURE fallback")
                 startActivity(fallback)
                 sendStatusToWatch("camera_opened")
             } catch (e2: Exception) {
@@ -230,9 +228,6 @@ class CameraControlService : AccessibilityService() {
 
     private fun captureAfterOpen() {
         Log.d(TAG, "captureAfterOpen: retrying after camera open (photo priority)")
-
-        // Dump ALL nodes so we can see what the camera UI looks like
-        dumpAllNodes("captureAfterOpen")
 
         // First try photo shutter buttons
         if (findAndClickButton(shutterDescriptions)) {
