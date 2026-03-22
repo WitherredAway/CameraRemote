@@ -489,11 +489,18 @@ class RemoteActivity : AppCompatActivity(), MessageClient.OnMessageReceivedListe
     private val processZoomRunnable = object : Runnable {
         override fun run() {
             if (zoomQueue.isNotEmpty()) {
-                val cmd = zoomQueue.removeAt(0)
-                sendCommand(cmd)
+                // Batch all consecutive same-direction ticks into one command
+                val direction = zoomQueue.removeAt(0)
+                var steps = 1
+                while (zoomQueue.isNotEmpty() && zoomQueue[0] == direction) {
+                    zoomQueue.removeAt(0)
+                    steps++
+                }
+                // Send batched command — fast spin = more accumulated ticks = bigger zoom step
+                val dir = if (direction.startsWith("zoom_in")) "zoom_in" else "zoom_out"
+                sendCommand("$dir:$steps")
                 lastZoomSentTime = System.currentTimeMillis()
-                // Always schedule next check after interval, even if queue looks empty
-                // — more ticks may arrive during the wait
+                // Always schedule next check — more ticks may arrive during the wait
                 heartbeatHandler.postDelayed(this, ZOOM_INTERVAL_MS)
             } else {
                 isProcessingZoom = false
