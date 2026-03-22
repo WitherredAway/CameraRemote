@@ -68,6 +68,7 @@ class CameraControlService : AccessibilityService() {
     private val handler = Handler(Looper.getMainLooper())
     private lateinit var messageClient: MessageClient
     private lateinit var settings: SettingsManager
+    private var burstCancelled = false
 
     // Common content descriptions for camera controls across popular camera apps
     private val shutterDescriptions = listOf(
@@ -182,6 +183,7 @@ class CameraControlService : AccessibilityService() {
             "zoom_out" -> requireCameraOpen { zoom(zoomIn = false, steps = 1) }
             "open_gallery" -> openGallery()
             "burst_capture" -> requireCameraOpen { burstCapture() }
+            "cancel_burst" -> cancelBurst()
             "capture_timer" -> captureWithTimer()
             "preview_capture" -> requireCameraOpen { previewCapture() }
             else -> {
@@ -1009,13 +1011,21 @@ class CameraControlService : AccessibilityService() {
     }
 
     private fun burstCapture() {
+        burstCancelled = false
         val burstCount = settings.getBurstCount()
         sendStatusToWatch("burst_$burstCount")
         burstCaptureNext(1, burstCount)
     }
 
+    private fun cancelBurst() {
+        burstCancelled = true
+        handler.removeCallbacksAndMessages(null)
+        sendStatusToWatch("burst_cancelled")
+        Log.d(TAG, "Burst capture cancelled")
+    }
+
     private fun burstCaptureNext(current: Int, total: Int) {
-        if (current > total) return
+        if (burstCancelled || current > total) return
         // Try to click the shutter button
         val clicked = findAndClickButton(shutterDescriptions)
         if (clicked) {
