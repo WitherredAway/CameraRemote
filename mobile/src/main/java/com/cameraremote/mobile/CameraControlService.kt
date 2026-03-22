@@ -109,6 +109,8 @@ class CameraControlService : AccessibilityService() {
 
     // Track flash state for direct toggling
     private var flashOn = false
+    // Track video recording state
+    private var isRecording = false
 
     private fun requireCameraOpen(action: () -> Unit) {
         val root = rootInActiveWindow
@@ -327,7 +329,12 @@ class CameraControlService : AccessibilityService() {
         }
         // Then try record/stop button (for video mode or stopping recording)
         if (findAndClickButton(recordDescriptions)) {
-            sendStatusToWatch("captured")
+            isRecording = !isRecording
+            if (isRecording) {
+                sendStatusToWatch("recording_started")
+            } else {
+                sendStatusToWatch("recording_stopped")
+            }
             return
         }
         // Fallback: tap the shutter/record button position on screen

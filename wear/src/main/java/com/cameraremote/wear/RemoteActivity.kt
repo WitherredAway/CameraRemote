@@ -55,6 +55,20 @@ class RemoteActivity : AppCompatActivity(), MessageClient.OnMessageReceivedListe
     private var vibrateOnCountdown = true
     private var captureCount = 0
     private var lastPreviewUri: String? = null
+    private var isRecording = false
+    private var recordingStartTime = 0L
+    private val recordingTimerHandler = Handler(Looper.getMainLooper())
+    private val recordingTimerRunnable = object : Runnable {
+        override fun run() {
+            if (isRecording) {
+                val elapsed = (System.currentTimeMillis() - recordingStartTime) / 1000
+                val mins = elapsed / 60
+                val secs = elapsed % 60
+                binding.tvStatus.text = "\u25CF REC ${String.format("%02d:%02d", mins, secs)}"
+                recordingTimerHandler.postDelayed(this, 500L)
+            }
+        }
+    }
     private val zoomQueue = mutableListOf<String>()
     private var isProcessingZoom = false
     private var lastZoomSentTime = 0L
@@ -303,6 +317,7 @@ class RemoteActivity : AppCompatActivity(), MessageClient.OnMessageReceivedListe
     override fun onDestroy() {
         super.onDestroy()
         heartbeatHandler.removeCallbacks(heartbeatRunnable)
+        recordingTimerHandler.removeCallbacks(recordingTimerRunnable)
         countdownTimer?.cancel()
         scopeJob.cancel()
     }
@@ -381,6 +396,35 @@ class RemoteActivity : AppCompatActivity(), MessageClient.OnMessageReceivedListe
             val status = String(messageEvent.data)
             Log.d(TAG, "Status received from phone: $status")
             if (status == "captured") captureCount++
+
+            // Handle recording state
+            if (status == "recording_started") {
+                isRecording = true
+                recordingStartTime = System.currentTimeMillis()
+                runOnUiThread {
+                    binding.tvStatus.text = "\u25CF REC 00:00"
+                    recordingTimerHandler.removeCallbacks(recordingTimerRunnable)
+                    recordingTimerHandler.postDelayed(recordingTimerRunnable, 500L)
+                    vibrate()
+                }
+                return
+            }
+            if (status == "recording_stopped") {
+                isRecording = false
+                recordingTimerHandler.removeCallbacks(recordingTimerRunnable)
+                runOnUiThread {
+                    binding.tvStatus.text = "Recording saved"
+                    vibrate()
+                }
+                return
+            }
+
+            // Stop recording timer if any other status comes in
+            if (isRecording && status != "recording_started") {
+                isRecording = false
+                recordingTimerHandler.removeCallbacks(recordingTimerRunnable)
+            }
+
             runOnUiThread {
                 val display = if (status == "captured" && captureCount > 1) {
                     "${formatStatus(status)} ($captureCount)"
@@ -403,6 +447,8 @@ class RemoteActivity : AppCompatActivity(), MessageClient.OnMessageReceivedListe
             "flash_on" -> "Flash ON"
             "flash_off" -> "Flash OFF"
             "flash_not_found" -> "Flash N/A"
+            "recording_started" -> "\u25CF REC 00:00"
+            "recording_stopped" -> "Recording saved"
             "video_camera_opened" -> "Video mode"
             "video_open_failed" -> "Video failed"
             "camera_open_failed" -> "Can't open camera"

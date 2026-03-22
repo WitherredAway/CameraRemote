@@ -17,7 +17,7 @@ import com.google.common.util.concurrent.ListenableFuture
 class CameraRemoteTileService : androidx.wear.tiles.TileService() {
 
     companion object {
-        private const val RESOURCES_VERSION = "4"
+        private const val RESOURCES_VERSION = "5"
 
         // The actual class package differs from applicationId
         private const val TILE_ACTION_CLASS = "com.cameraremote.wear.TileActionActivity"
@@ -33,6 +33,14 @@ class CameraRemoteTileService : androidx.wear.tiles.TileService() {
         private const val COLOR_FLASH = 0xFFFFE082.toInt()
         private const val COLOR_SWITCH = 0xFFB0BEC5.toInt()
         private const val COLOR_TIMER = 0xFFFFCC80.toInt()
+
+        // Resource IDs for icons
+        private const val RES_IC_CAMERA = "ic_camera"
+        private const val RES_IC_SHUTTER = "ic_shutter"
+        private const val RES_IC_VIDEO = "ic_video"
+        private const val RES_IC_FLASH = "ic_flash"
+        private const val RES_IC_FLIP = "ic_flip"
+        private const val RES_IC_TIMER = "ic_timer"
     }
 
     override fun onTileRequest(requestParams: RequestBuilders.TileRequest): ListenableFuture<TileBuilders.Tile> {
@@ -57,11 +65,31 @@ class CameraRemoteTileService : androidx.wear.tiles.TileService() {
     }
 
     override fun onResourcesRequest(requestParams: RequestBuilders.ResourcesRequest): ListenableFuture<ResourceBuilders.Resources> {
-        return Futures.immediateFuture(
-            ResourceBuilders.Resources.Builder()
-                .setVersion(RESOURCES_VERSION)
-                .build()
-        )
+        val builder = ResourceBuilders.Resources.Builder()
+            .setVersion(RESOURCES_VERSION)
+
+        // Register drawable resources by Android resource ID
+        mapOf(
+            RES_IC_CAMERA to R.drawable.tile_ic_photo_camera,
+            RES_IC_SHUTTER to R.drawable.tile_ic_shutter,
+            RES_IC_VIDEO to R.drawable.tile_ic_videocam,
+            RES_IC_FLASH to R.drawable.tile_ic_flash,
+            RES_IC_FLIP to R.drawable.tile_ic_flip_camera,
+            RES_IC_TIMER to R.drawable.tile_ic_timer
+        ).forEach { (id, drawableRes) ->
+            builder.addIdToImageMapping(
+                id,
+                ResourceBuilders.ImageResource.Builder()
+                    .setAndroidResourceByResId(
+                        ResourceBuilders.AndroidImageResourceByResId.Builder()
+                            .setResourceId(drawableRes)
+                            .build()
+                    )
+                    .build()
+            )
+        }
+
+        return Futures.immediateFuture(builder.build())
     }
 
     private fun buildLayout(): LayoutElementBuilders.LayoutElement {
@@ -85,15 +113,15 @@ class CameraRemoteTileService : androidx.wear.tiles.TileService() {
                     .addContent(title())
                     .addContent(spacer(8f))
                     .addContent(row(
-                        button("Camera", "open_camera", COLOR_CAMERA, "CAM"),
-                        button("Snap", "capture", COLOR_SHUTTER, "\u25CF"),
-                        button("Video", "open_video", COLOR_VIDEO, "REC")
+                        button("Camera", "open_camera", COLOR_CAMERA, RES_IC_CAMERA),
+                        button("Snap", "capture", COLOR_SHUTTER, RES_IC_SHUTTER),
+                        button("Video", "open_video", COLOR_VIDEO, RES_IC_VIDEO)
                     ))
                     .addContent(spacer(6f))
                     .addContent(row(
-                        button("Flash", "toggle_flash", COLOR_FLASH, "\u26A1"),
-                        button("Flip", "switch_camera", COLOR_SWITCH, "\u21C4"),
-                        button("Timer", "capture_timer", COLOR_TIMER, "3s")
+                        button("Flash", "toggle_flash", COLOR_FLASH, RES_IC_FLASH),
+                        button("Flip", "switch_camera", COLOR_SWITCH, RES_IC_FLIP),
+                        button("Timer", "capture_timer", COLOR_TIMER, RES_IC_TIMER)
                     ))
                     .build()
             )
@@ -132,7 +160,7 @@ class CameraRemoteTileService : androidx.wear.tiles.TileService() {
         label: String,
         command: String,
         bgColor: Int,
-        icon: String = label.first().toString()
+        iconResId: String
     ): LayoutElementBuilders.LayoutElement {
         val action = ActionBuilders.LaunchAction.Builder()
             .setAndroidActivity(
@@ -178,15 +206,10 @@ class CameraRemoteTileService : androidx.wear.tiles.TileService() {
                             .build()
                     )
                     .addContent(
-                        LayoutElementBuilders.Text.Builder()
-                            .setText(icon)
-                            .setFontStyle(
-                                LayoutElementBuilders.FontStyle.Builder()
-                                    .setSize(sp(14f))
-                                    .setColor(argb(0xFF000000.toInt()))
-                                    .setWeight(LayoutElementBuilders.FONT_WEIGHT_BOLD)
-                                    .build()
-                            )
+                        LayoutElementBuilders.Image.Builder()
+                            .setResourceId(iconResId)
+                            .setWidth(dp(20f))
+                            .setHeight(dp(20f))
                             .build()
                     )
                     .build()
