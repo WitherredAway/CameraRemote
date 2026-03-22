@@ -52,6 +52,9 @@ class CameraControlService : AccessibilityService() {
         "video", "record", "video mode", "switch to video",
         "start recording", "record video", "movie", "camcorder"
     )
+    private val photoModeDescriptions = listOf(
+        "photo", "photo mode", "switch to photo", "camera mode"
+    )
 
     override fun onServiceConnected() {
         super.onServiceConnected()
@@ -80,6 +83,23 @@ class CameraControlService : AccessibilityService() {
 
     fun handleCommand(command: String) {
         Log.d(TAG, "handleCommand: $command")
+
+        // Parse zoom commands with steps: "zoom_in:3" or "zoom_out:2"
+        if (command.startsWith("zoom_in:") || command.startsWith("zoom_out:")) {
+            val parts = command.split(":")
+            val zoomIn = command.startsWith("zoom_in")
+            val steps = parts.getOrNull(1)?.toIntOrNull() ?: 1
+            val root = rootInActiveWindow
+            if (root != null && isCameraAppInForeground(root)) {
+                root.recycle()
+                zoom(zoomIn = zoomIn, steps = steps)
+            } else {
+                root?.recycle()
+                sendStatusToWatch("camera_not_open")
+            }
+            return
+        }
+
         when (command) {
             "open_camera" -> openCamera()
             "capture" -> capture()
@@ -108,7 +128,7 @@ class CameraControlService : AccessibilityService() {
                 val root = rootInActiveWindow
                 if (root != null && isCameraAppInForeground(root)) {
                     root.recycle()
-                    zoom(zoomIn = true)
+                    zoom(zoomIn = true, steps = 1)
                 } else {
                     root?.recycle()
                     sendStatusToWatch("camera_not_open")
@@ -118,7 +138,7 @@ class CameraControlService : AccessibilityService() {
                 val root = rootInActiveWindow
                 if (root != null && isCameraAppInForeground(root)) {
                     root.recycle()
-                    zoom(zoomIn = false)
+                    zoom(zoomIn = false, steps = 1)
                 } else {
                     root?.recycle()
                     sendStatusToWatch("camera_not_open")
@@ -208,25 +228,86 @@ class CameraControlService : AccessibilityService() {
 
     private fun captureAfterOpen() {
         Log.d(TAG, "captureAfterOpen: retrying after camera open (photo priority)")
-        // After opening camera via shutter button, prioritize PHOTO shutter
-        // over record button — don't accidentally start video recording
+
+        // First try photo shutter buttons
         if (findAndClickButton(shutterDescriptions)) {
             sendStatusToWatch("captured")
             return
         }
-        // If no shutter found, camera might still be in video mode despite our intent.
-        // Try record button as last resort (user can at least interact)
-        if (findAndClickButton(recordDescriptions)) {
-            sendStatusToWatch("captured")
-            return
+
+        // Camera might have opened in video mode despite STILL_IMAGE intent.
+        // Check if we see record buttons but no shutter — means we're in video mode.
+        // Try to switch to photo mode by clicking the photo mode tab.
+        Log.d(TAG, "captureAfterOpen: no shutter found, checking if in video mode")
+        if (isInVideoMode()) {
+            Log.d(TAG, "captureAfterOpen: detected video mode, switching to photo")
+            if (switchToPhotoMode()) {
+                // Wait for mode switch, then try capture again
+                handler.postDelayed({
+                    Log.d(TAG, "captureAfterOpen: retrying capture after mode switch")
+                    if (findAndClickButton(shutterDescriptions)) {
+                        sendStatusToWatch("captured")
+                    } else if (settings.isShutterFallbackEnabled()) {
+                        tapShutterFallback()
+                    } else {
+                        sendStatusToWatch("shutter_not_found")
+                    }
+                }, 800L)
+                return
+            }
         }
+
         // Fallback
         if (settings.isShutterFallbackEnabled()) {
-            Log.d(TAG, "captureAfterOpen: shutter not found, trying fallback tap")
+            Log.d(TAG, "captureAfterOpen: trying fallback tap")
             tapShutterFallback()
         } else {
             sendStatusToWatch("shutter_not_found")
         }
+    }
+
+    /**
+     * Check if the camera is currently in video mode by looking for record buttons
+     * but no photo shutter buttons.
+     */
+    private fun isInVideoMode(): Boolean {
+        val root = rootInActiveWindow ?: return false
+        var hasRecord = false
+        var hasShutter = false
+
+        for (desc in recordDescriptions) {
+            val nodes = root.findAccessibilityNodeInfosByText(desc)
+            if (nodes.isNotEmpty()) {
+                hasRecord = true
+                for (node in nodes) node.recycle()
+                break
+            }
+        }
+        for (desc in shutterDescriptions) {
+            val nodes = root.findAccessibilityNodeInfosByText(desc)
+            if (nodes.isNotEmpty()) {
+                hasShutter = true
+                for (node in nodes) node.recycle()
+                break
+            }
+        }
+        root.recycle()
+        Log.d(TAG, "isInVideoMode: hasRecord=$hasRecord, hasShutter=$hasShutter")
+        return hasRecord && !hasShutter
+    }
+
+    /**
+     * Try to switch from video mode to photo mode by clicking a "Photo" mode tab/button.
+     */
+    private fun switchToPhotoMode(): Boolean {
+        Log.d(TAG, "switchToPhotoMode: looking for photo mode button")
+        if (findAndClickButton(photoModeDescriptions)) {
+            Log.d(TAG, "switchToPhotoMode: clicked photo mode button")
+            sendStatusToWatch("photo_mode")
+            return true
+        }
+        Log.d(TAG, "switchToPhotoMode: no photo mode button found")
+        return false
     }
 
     private fun doCapture() {
@@ -299,7 +380,7 @@ class CameraControlService : AccessibilityService() {
      * Zoom in or out by performing a pinch gesture on screen.
      * Uses two-finger spread (zoom in) or pinch (zoom out).
      */
-    private fun zoom(zoomIn: Boolean) {
+    private fun zoom(zoomIn: Boolean, steps: Int = 1) {
         val wm = getSystemService(Context.WINDOW_SERVICE) as WindowManager
         val metrics = DisplayMetrics()
         @Suppress("DEPRECATION")
@@ -307,9 +388,12 @@ class CameraControlService : AccessibilityService() {
 
         val centerX = metrics.widthPixels / 2f
         val centerY = metrics.heightPixels / 2f
-        val offset = metrics.widthPixels / 8f  // How far fingers move
+        // Scale gesture distance by steps — more rotation = bigger zoom
+        val baseOffset = metrics.widthPixels / 10f
+        val offset = baseOffset * steps.coerceIn(1, 5)
 
-        val duration = 400L
+        val duration = 300L
+        Log.d(TAG, "zoom: zoomIn=$zoomIn steps=$steps offset=$offset")
         if (zoomIn) {
             // Spread: fingers move outward from center
             val path1 = Path().apply {

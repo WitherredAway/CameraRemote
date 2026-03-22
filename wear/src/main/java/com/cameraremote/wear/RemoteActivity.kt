@@ -265,14 +265,14 @@ class RemoteActivity : AppCompatActivity(), MessageClient.OnMessageReceivedListe
     }
 
     private fun formatCommand(command: String): String {
-        return when (command) {
-            "open_camera" -> "Opening..."
-            "capture" -> "Capture"
-            "toggle_flash" -> "Flash..."
-            "switch_camera" -> "Switching..."
-            "open_video" -> "Video..."
-            "zoom_in" -> "Zoom +"
-            "zoom_out" -> "Zoom \u2212"
+        return when {
+            command == "open_camera" -> "Opening..."
+            command == "capture" -> "Capture"
+            command == "toggle_flash" -> "Flash..."
+            command == "switch_camera" -> "Switching..."
+            command == "open_video" -> "Video..."
+            command.startsWith("zoom_in") -> "Zoom +"
+            command.startsWith("zoom_out") -> "Zoom \u2212"
             else -> command
         }
     }
@@ -303,6 +303,7 @@ class RemoteActivity : AppCompatActivity(), MessageClient.OnMessageReceivedListe
             "camera_open_failed" -> "Can't open camera"
             "camera_not_open" -> "Open camera first"
             "no_camera_app" -> "No camera app"
+            "photo_mode" -> "Switching to photo..."
             "shutter_not_found" -> "Shutter N/A"
             "unknown_command" -> "Unknown command"
             "service_not_enabled" -> "Enable service!"
@@ -344,17 +345,18 @@ class RemoteActivity : AppCompatActivity(), MessageClient.OnMessageReceivedListe
             bezelRotationAccumulator += delta
 
             val now = System.currentTimeMillis()
-            // Send zoom on every detent click but debounce rapid events
-            // so the phone gesture has time to complete
-            val debounceMs = 300L
+            val debounceMs = 150L
 
             if (bezelRotationAccumulator != 0f && (now - lastBezelZoomTime) >= debounceMs) {
-                if (bezelRotationAccumulator > 0) {
-                    Log.d(TAG, "Bezel: zoom in (accumulated=${bezelRotationAccumulator})")
-                    sendCommand("zoom_in")
+                // Send accumulated amount so phone can scale the gesture proportionally
+                val amount = bezelRotationAccumulator
+                val steps = Math.min(Math.abs(amount).toInt().coerceAtLeast(1), 5)
+                if (amount > 0) {
+                    Log.d(TAG, "Bezel: zoom in (amount=$amount, steps=$steps)")
+                    sendCommand("zoom_in:$steps")
                 } else {
-                    Log.d(TAG, "Bezel: zoom out (accumulated=${bezelRotationAccumulator})")
-                    sendCommand("zoom_out")
+                    Log.d(TAG, "Bezel: zoom out (amount=$amount, steps=$steps)")
+                    sendCommand("zoom_out:$steps")
                 }
                 bezelRotationAccumulator = 0f
                 lastBezelZoomTime = now
