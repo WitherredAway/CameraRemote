@@ -27,11 +27,11 @@ Perfect for group photos, tripod shots, vlogging, or any time your phone is out 
 - **Open Camera** — launch your default camera app from the watch
 - **Take Photo** — tap the shutter button in any camera app
 - **Timer Photo** — configurable countdown before capture (default 3s)
-- **Video Mode** — switch to video and start/stop recording
+- **Video Mode** — switch to video and start/stop recording with recording timer display
 - **Toggle Flash** — cycle through flash modes with smart submenu detection
 - **Switch Camera** — toggle between front and rear cameras
 - **Bezel Zoom** — rotate the watch bezel to zoom in/out with speed-proportional acceleration
-- **Burst Capture** — long-press shutter for 5 rapid photos at 300ms intervals
+- **Burst Capture** — long-press shutter for rapid photos with click-confirmed sequencing (each shot waits for shutter confirmation before the next)
 - **Burst Timer** — countdown timer followed by burst capture
 - **Photo Preview** — view captured photos on the watch with save/delete options
 - **Gallery Shortcut** — long-press the camera button to open your gallery
@@ -41,7 +41,8 @@ Perfect for group photos, tripod shots, vlogging, or any time your phone is out 
 - **Material You** — dynamic colors from your device theme applied to the background
 - **Wear Tile** — quick-access tile with 6 camera controls (snap, camera, video, flash, flip, timer) right from your watch face
 - **Haptic feedback** — configurable vibration on every button press
-- **Real-time status** — live feedback from the phone (e.g. "Photo saved", "Recording started", "Flash: Auto")
+- **Real-time status** — live feedback from the phone (e.g. "Photo saved", "● REC 01:23", "Flash: Auto")
+- **Recording timer** — live elapsed time display while recording video
 - **Photo count** — tracks how many photos you've taken in the current session
 - **Bezel scrolling** — native rotary input support
 
@@ -59,7 +60,7 @@ Perfect for group photos, tripod shots, vlogging, or any time your phone is out 
 ### Smart Camera Control
 - **Works with any camera app** — not hardcoded to any specific camera (Samsung, Google, Pixel, etc.)
 - **Accessibility-based detection** — finds camera buttons by content description, not screen coordinates
-- **Shutter priority** — always tries photo shutter first, falls back to record button only if needed
+- **Shutter priority** — tries photo shutter first in photo mode, but stops recording first if video is active
 - **Flash submenu handling** — automatically detects and navigates flash option submenus with retry logic
 - **Camera-not-open gating** — commands are only sent when the camera app is actually in the foreground
 - **Photo mode enforcement** — shutter button opens camera in photo mode, not video
