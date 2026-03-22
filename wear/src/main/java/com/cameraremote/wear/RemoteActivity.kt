@@ -301,8 +301,12 @@ class RemoteActivity : AppCompatActivity(), MessageClient.OnMessageReceivedListe
             "video_camera_opened" -> "Video mode"
             "video_open_failed" -> "Video failed"
             "camera_open_failed" -> "Can't open camera"
+            "camera_not_open" -> "Open camera first"
+            "no_camera_app" -> "No camera app"
+            "shutter_not_found" -> "Shutter N/A"
+            "unknown_command" -> "Unknown command"
             "service_not_enabled" -> "Enable service!"
-            else -> status
+            else -> status.replace("_", " ").replaceFirstChar { it.uppercase() }
         }
     }
 
