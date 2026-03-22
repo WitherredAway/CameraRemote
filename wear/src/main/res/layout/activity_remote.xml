@@ -1,135 +1,420 @@
 <?xml version="1.0" encoding="utf-8"?>
-<androidx.wear.widget.BoxInsetLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:app="http://schemas.android.com/apk/res-auto"
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/scrollView"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="#FF000000"
-    android:padding="2dp">
+    android:background="?android:colorBackground"
+    android:fillViewport="true"
+    android:isScrollContainer="true">
 
-    <ScrollView
+    <LinearLayout
         android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        app:boxedEdges="all">
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:paddingHorizontal="14dp"
+        android:paddingTop="24dp"
+        android:paddingBottom="28dp">
+
+        <!-- App header -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:paddingHorizontal="4dp">
+
+            <ImageView
+                android:layout_width="32dp"
+                android:layout_height="32dp"
+                android:src="@drawable/ic_camera"
+                android:contentDescription="App icon" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="8dp"
+                android:text="Camera Remote"
+                android:textSize="13sp"
+                android:textStyle="bold"
+                android:textColor="?colorOnSurface" />
+        </LinearLayout>
+
+        <!-- Connection status -->
+        <LinearLayout
+            android:id="@+id/statusCard"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="10dp"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:padding="10dp"
+            android:background="@drawable/bg_status_active">
+
+            <ImageView
+                android:id="@+id/statusIcon"
+                android:layout_width="14dp"
+                android:layout_height="14dp"
+                android:src="@drawable/ic_check_circle"
+                android:contentDescription="Status" />
+
+            <TextView
+                android:id="@+id/tvConnection"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:layout_marginStart="8dp"
+                android:text="Checking..."
+                android:textSize="11sp"
+                android:textColor="?colorOnSurface" />
+        </LinearLayout>
+
+        <!-- Last action -->
+        <TextView
+            android:id="@+id/tvStatus"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="6dp"
+            android:paddingHorizontal="4dp"
+            android:text="Ready"
+            android:textSize="10sp"
+            android:textColor="?colorOutline" />
+
+        <!-- CONTROLS section -->
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="14dp"
+            android:layout_marginStart="4dp"
+            android:text="CONTROLS"
+            android:textSize="9sp"
+            android:textStyle="bold"
+            android:textColor="?colorPrimary"
+            android:letterSpacing="0.1" />
 
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:gravity="center_horizontal"
+            android:layout_marginTop="8dp"
             android:orientation="vertical"
-            android:paddingTop="8dp"
-            android:paddingBottom="16dp">
+            android:background="@drawable/bg_card"
+            android:paddingVertical="2dp">
 
-            <!-- Connection status -->
-            <TextView
-                android:id="@+id/tvConnection"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="Connecting..."
-                android:textColor="#AAAAAA"
-                android:textSize="11sp" />
-
-            <!-- Status message -->
-            <TextView
-                android:id="@+id/tvStatus"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="2dp"
-                android:text="Ready"
-                android:textColor="#FFFFFF"
-                android:textSize="12sp"
-                android:textStyle="bold" />
-
-            <!-- Open Camera Button -->
-            <Button
+            <!-- Open Camera -->
+            <LinearLayout
                 android:id="@+id/btnOpenCamera"
-                android:layout_width="140dp"
-                android:layout_height="36dp"
-                android:layout_marginTop="6dp"
-                android:background="@drawable/btn_primary_pill"
-                android:text="OPEN CAMERA"
-                android:textColor="#FFFFFF"
-                android:textSize="11sp"
-                android:textStyle="bold" />
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
+                android:paddingHorizontal="12dp"
+                android:paddingVertical="10dp"
+                android:clickable="true"
+                android:focusable="true"
+                android:background="?selectableItemBackground">
 
-            <!-- Capture Button (large, red) -->
-            <Button
+                <FrameLayout
+                    android:layout_width="28dp"
+                    android:layout_height="28dp">
+
+                    <View
+                        android:layout_width="28dp"
+                        android:layout_height="28dp"
+                        android:background="@drawable/bg_icon_circle" />
+
+                    <ImageView
+                        android:layout_width="14dp"
+                        android:layout_height="14dp"
+                        android:layout_gravity="center"
+                        android:src="@drawable/ic_photo_camera"
+                        android:contentDescription="Open Camera" />
+                </FrameLayout>
+
+                <TextView
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:layout_marginStart="10dp"
+                    android:text="Open Camera"
+                    android:textSize="12sp"
+                    android:textColor="?colorOnSurface" />
+
+                <ImageView
+                    android:layout_width="12dp"
+                    android:layout_height="12dp"
+                    android:src="@drawable/ic_chevron_right"
+                    android:contentDescription="Go" />
+            </LinearLayout>
+
+            <!-- Divider -->
+            <View
+                android:layout_width="match_parent"
+                android:layout_height="1dp"
+                android:layout_marginStart="50dp"
+                android:background="?colorOutlineVariant"
+                android:alpha="0.25" />
+
+            <!-- Take Photo -->
+            <LinearLayout
                 android:id="@+id/btnCapture"
-                android:layout_width="140dp"
-                android:layout_height="44dp"
-                android:layout_marginTop="6dp"
-                android:background="@drawable/btn_capture_pill"
-                android:text="CAPTURE"
-                android:textColor="#FFFFFF"
-                android:textSize="13sp"
-                android:textStyle="bold" />
-
-            <!-- Row: Timer | Flash -->
-            <LinearLayout
-                android:layout_width="wrap_content"
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="6dp"
-                android:gravity="center"
-                android:orientation="horizontal">
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
+                android:paddingHorizontal="12dp"
+                android:paddingVertical="10dp"
+                android:clickable="true"
+                android:focusable="true"
+                android:background="?selectableItemBackground">
 
-                <Button
-                    android:id="@+id/btnTimer"
-                    android:layout_width="66dp"
-                    android:layout_height="34dp"
-                    android:background="@drawable/btn_outline_pill"
-                    android:text="3s"
-                    android:textColor="#CCCCCC"
-                    android:textSize="11sp"
-                    android:textStyle="bold" />
+                <FrameLayout
+                    android:layout_width="28dp"
+                    android:layout_height="28dp">
 
-                <View
-                    android:layout_width="8dp"
-                    android:layout_height="1dp" />
+                    <View
+                        android:layout_width="28dp"
+                        android:layout_height="28dp"
+                        android:background="@drawable/bg_icon_circle" />
 
-                <Button
-                    android:id="@+id/btnFlash"
-                    android:layout_width="66dp"
-                    android:layout_height="34dp"
-                    android:background="@drawable/btn_outline_pill"
-                    android:text="FLASH"
-                    android:textColor="#CCCCCC"
-                    android:textSize="11sp"
-                    android:textStyle="bold" />
+                    <ImageView
+                        android:layout_width="14dp"
+                        android:layout_height="14dp"
+                        android:layout_gravity="center"
+                        android:src="@drawable/ic_photo_camera"
+                        android:contentDescription="Take Photo" />
+                </FrameLayout>
+
+                <TextView
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:layout_marginStart="10dp"
+                    android:text="Take Photo"
+                    android:textSize="12sp"
+                    android:textColor="?colorOnSurface" />
+
+                <ImageView
+                    android:layout_width="12dp"
+                    android:layout_height="12dp"
+                    android:src="@drawable/ic_chevron_right"
+                    android:contentDescription="Go" />
             </LinearLayout>
 
-            <!-- Row: Switch | Video -->
+            <!-- Divider -->
+            <View
+                android:layout_width="match_parent"
+                android:layout_height="1dp"
+                android:layout_marginStart="50dp"
+                android:background="?colorOutlineVariant"
+                android:alpha="0.25" />
+
+            <!-- Timer Photo -->
             <LinearLayout
-                android:layout_width="wrap_content"
+                android:id="@+id/btnTimer"
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="6dp"
-                android:gravity="center"
-                android:orientation="horizontal">
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
+                android:paddingHorizontal="12dp"
+                android:paddingVertical="10dp"
+                android:clickable="true"
+                android:focusable="true"
+                android:background="?selectableItemBackground">
 
-                <Button
-                    android:id="@+id/btnSwitch"
-                    android:layout_width="66dp"
-                    android:layout_height="34dp"
-                    android:background="@drawable/btn_outline_pill"
-                    android:text="FLIP"
-                    android:textColor="#CCCCCC"
-                    android:textSize="11sp"
-                    android:textStyle="bold" />
+                <FrameLayout
+                    android:layout_width="28dp"
+                    android:layout_height="28dp">
 
-                <View
-                    android:layout_width="8dp"
-                    android:layout_height="1dp" />
+                    <View
+                        android:layout_width="28dp"
+                        android:layout_height="28dp"
+                        android:background="@drawable/bg_icon_circle" />
 
-                <Button
-                    android:id="@+id/btnVideo"
-                    android:layout_width="66dp"
-                    android:layout_height="34dp"
-                    android:background="@drawable/btn_record_pill"
-                    android:text="VIDEO"
-                    android:textColor="#FFFFFF"
-                    android:textSize="11sp"
-                    android:textStyle="bold" />
+                    <ImageView
+                        android:layout_width="14dp"
+                        android:layout_height="14dp"
+                        android:layout_gravity="center"
+                        android:src="@drawable/ic_timer"
+                        android:contentDescription="Timer" />
+                </FrameLayout>
+
+                <TextView
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:layout_marginStart="10dp"
+                    android:text="3s Timer"
+                    android:textSize="12sp"
+                    android:textColor="?colorOnSurface" />
+
+                <ImageView
+                    android:layout_width="12dp"
+                    android:layout_height="12dp"
+                    android:src="@drawable/ic_chevron_right"
+                    android:contentDescription="Go" />
             </LinearLayout>
 
+            <!-- Divider -->
+            <View
+                android:layout_width="match_parent"
+                android:layout_height="1dp"
+                android:layout_marginStart="50dp"
+                android:background="?colorOutlineVariant"
+                android:alpha="0.25" />
+
+            <!-- Toggle Flash -->
+            <LinearLayout
+                android:id="@+id/btnFlash"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
+                android:paddingHorizontal="12dp"
+                android:paddingVertical="10dp"
+                android:clickable="true"
+                android:focusable="true"
+                android:background="?selectableItemBackground">
+
+                <FrameLayout
+                    android:layout_width="28dp"
+                    android:layout_height="28dp">
+
+                    <View
+                        android:layout_width="28dp"
+                        android:layout_height="28dp"
+                        android:background="@drawable/bg_icon_circle" />
+
+                    <ImageView
+                        android:layout_width="14dp"
+                        android:layout_height="14dp"
+                        android:layout_gravity="center"
+                        android:src="@drawable/ic_flash"
+                        android:contentDescription="Flash" />
+                </FrameLayout>
+
+                <TextView
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:layout_marginStart="10dp"
+                    android:text="Toggle Flash"
+                    android:textSize="12sp"
+                    android:textColor="?colorOnSurface" />
+
+                <ImageView
+                    android:layout_width="12dp"
+                    android:layout_height="12dp"
+                    android:src="@drawable/ic_chevron_right"
+                    android:contentDescription="Go" />
+            </LinearLayout>
+
+            <!-- Divider -->
+            <View
+                android:layout_width="match_parent"
+                android:layout_height="1dp"
+                android:layout_marginStart="50dp"
+                android:background="?colorOutlineVariant"
+                android:alpha="0.25" />
+
+            <!-- Switch Camera -->
+            <LinearLayout
+                android:id="@+id/btnSwitch"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
+                android:paddingHorizontal="12dp"
+                android:paddingVertical="10dp"
+                android:clickable="true"
+                android:focusable="true"
+                android:background="?selectableItemBackground">
+
+                <FrameLayout
+                    android:layout_width="28dp"
+                    android:layout_height="28dp">
+
+                    <View
+                        android:layout_width="28dp"
+                        android:layout_height="28dp"
+                        android:background="@drawable/bg_icon_circle" />
+
+                    <ImageView
+                        android:layout_width="14dp"
+                        android:layout_height="14dp"
+                        android:layout_gravity="center"
+                        android:src="@drawable/ic_flip_camera"
+                        android:contentDescription="Switch" />
+                </FrameLayout>
+
+                <TextView
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:layout_marginStart="10dp"
+                    android:text="Switch Camera"
+                    android:textSize="12sp"
+                    android:textColor="?colorOnSurface" />
+
+                <ImageView
+                    android:layout_width="12dp"
+                    android:layout_height="12dp"
+                    android:src="@drawable/ic_chevron_right"
+                    android:contentDescription="Go" />
+            </LinearLayout>
+
+            <!-- Divider -->
+            <View
+                android:layout_width="match_parent"
+                android:layout_height="1dp"
+                android:layout_marginStart="50dp"
+                android:background="?colorOutlineVariant"
+                android:alpha="0.25" />
+
+            <!-- Video Mode -->
+            <LinearLayout
+                android:id="@+id/btnVideo"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
+                android:paddingHorizontal="12dp"
+                android:paddingVertical="10dp"
+                android:clickable="true"
+                android:focusable="true"
+                android:background="?selectableItemBackground">
+
+                <FrameLayout
+                    android:layout_width="28dp"
+                    android:layout_height="28dp">
+
+                    <View
+                        android:layout_width="28dp"
+                        android:layout_height="28dp"
+                        android:background="@drawable/bg_icon_circle" />
+
+                    <ImageView
+                        android:layout_width="14dp"
+                        android:layout_height="14dp"
+                        android:layout_gravity="center"
+                        android:src="@drawable/ic_videocam"
+                        android:contentDescription="Video" />
+                </FrameLayout>
+
+                <TextView
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:layout_marginStart="10dp"
+                    android:text="Video Mode"
+                    android:textSize="12sp"
+                    android:textColor="?colorOnSurface" />
+
+                <ImageView
+                    android:layout_width="12dp"
+                    android:layout_height="12dp"
+                    android:src="@drawable/ic_chevron_right"
+                    android:contentDescription="Go" />
+            </LinearLayout>
         </LinearLayout>
-    </ScrollView>
 
-</androidx.wear.widget.BoxInsetLayout>
+    </LinearLayout>
+</ScrollView>

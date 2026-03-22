@@ -15,5 +15,5 @@ dependencyResolutionManagement {
 }
 
 rootProject.name = "CameraRemote"
-include(":mobile")
-include(":wear")
+include ':mobile'
+include ':wear'

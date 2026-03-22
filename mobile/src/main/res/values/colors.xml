@@ -1,29 +1,18 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- Material You Dark Theme Colors -->
-    <color name="background">#FF121212</color>
-    <color name="on_background">#FFFFFFFF</color>
-    <color name="on_background_secondary">#B3FFFFFF</color>
-
-    <color name="surface">#FF1E1E1E</color>
-    <color name="on_surface">#FFFFFFFF</color>
-    <color name="on_surface_secondary">#B3FFFFFF</color>
-
-    <color name="surface_warning">#FF2D2200</color>
-    <color name="on_surface_warning">#FFFFB74D</color>
-    <color name="on_surface_warning_secondary">#CCFFCC80</color>
-
-    <color name="primary">#FF8AB4F8</color>
-    <color name="on_primary">#FF003062</color>
-    <color name="primary_container">#FF004A8F</color>
-    <color name="on_primary_container">#FFD3E3FD</color>
-
-    <color name="secondary">#FFB8C8E0</color>
-    <color name="on_secondary">#FF253140</color>
-
-    <color name="status_enabled">#FF81C784</color>
-    <color name="status_disabled">#FFEF5350</color>
-
-    <!-- Launcher icon colors -->
+    <color name="primary">#FF6750A4</color>
+    <color name="on_primary">#FFFFFFFF</color>
+    <color name="primary_container">#FFEADDFF</color>
+    <color name="on_primary_container">#FF21005D</color>
+    <color name="secondary">#FF625B71</color>
+    <color name="on_secondary">#FFFFFFFF</color>
+    <color name="secondary_container">#FFE8DEF8</color>
+    <color name="on_secondary_container">#FF1D192B</color>
+    <color name="surface">#FFFFFBFE</color>
+    <color name="on_surface">#FF1C1B1F</color>
+    <color name="background">#FFFFFBFE</color>
+    <color name="text_primary">#FF1C1B1F</color>
+    <color name="text_secondary">#FF49454F</color>
+    <color name="text_hint">#FF79747E</color>
     <color name="ic_launcher_background">#FF1E1E1E</color>
 </resources>

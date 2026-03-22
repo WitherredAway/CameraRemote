@@ -1,49 +1,70 @@
 package com.cameraremote.wear
 
-import android.app.Activity
+import android.os.Build
 import android.os.Bundle
 import android.os.VibrationEffect
 import android.os.Vibrator
+import android.os.VibratorManager
 import android.util.Log
+import androidx.appcompat.app.AppCompatActivity
 import com.google.android.gms.wearable.Wearable
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.tasks.await
 
-class TileActionActivity : Activity() {
+class TileActionActivity : AppCompatActivity() {
 
     companion object {
-        const val TAG = "TileActionActivity"
+        private const val TAG = "TileActionActivity"
     }
+
+    private val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        val command = intent.getStringExtra("command")
-        if (command != null) {
-            Log.d(TAG, "Tile action: $command")
-            vibrate()
-            sendCommand(command)
+        val command = intent.getStringExtra("command") ?: run {
+            Log.w(TAG, "No command in intent")
+            finish()
+            return
         }
+        Log.d(TAG, "Tile action: $command")
 
-        finish()
+        vibrate()
+        sendCommand(command)
     }
 
     private fun sendCommand(command: String) {
-        Wearable.getNodeClient(this).connectedNodes.addOnSuccessListener { nodes ->
-            for (node in nodes) {
-                Wearable.getMessageClient(this).sendMessage(
-                    node.id,
-                    "/camera_remote",
-                    command.toByteArray()
-                ).addOnSuccessListener {
+        scope.launch {
+            try {
+                val nodes = Wearable.getNodeClient(this@TileActionActivity).connectedNodes.await()
+                val messageClient = Wearable.getMessageClient(this@TileActionActivity)
+                for (node in nodes) {
+                    messageClient.sendMessage(node.id, "/camera_remote", command.toByteArray()).await()
                     Log.d(TAG, "Command '$command' sent to ${node.displayName}")
-                }.addOnFailureListener { e ->
-                    Log.e(TAG, "Failed to send command", e)
                 }
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to send command", e)
+            } finally {
+                finish()
             }
         }
     }
 
     private fun vibrate() {
-        val vibrator = getSystemService(Vibrator::class.java)
-        vibrator.vibrate(VibrationEffect.createOneShot(50, VibrationEffect.DEFAULT_AMPLITUDE))
+        try {
+            val vibrator = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                val vm = getSystemService(VibratorManager::class.java)
+                vm?.defaultVibrator
+            } else {
+                @Suppress("DEPRECATION")
+                getSystemService(Vibrator::class.java)
+            }
+            vibrator?.vibrate(VibrationEffect.createOneShot(50, VibrationEffect.DEFAULT_AMPLITUDE))
+        } catch (e: Exception) {
+            Log.w(TAG, "Vibration failed", e)
+        }
     }
 }

@@ -5,6 +5,8 @@ WearOS Camera Remote app. Two modules: a phone companion (AccessibilityService t
 
 **Key difference from typical camera apps**: This app does NOT implement its own camera. It launches and controls the phone's default camera app using an AccessibilityService to find and tap camera UI buttons.
 
+**Code style**: Matches [NotificationMirror](https://github.com/WitherredAway/NotificationMirror) conventions — AppCompatActivity, ViewBinding, DynamicColors, CoroutineScope with SupervisorJob, coroutines with `await()`, proper logging/error handling, card-based Material3 dark UI.
+
 ## Project Structure
 ```
 CameraRemote/
@@ -18,8 +20,8 @@ CameraRemote/
 │       ├── RemoteActivity.kt            # Main watch remote UI
 │       ├── CameraRemoteTileService.kt   # Watch face tile with camera controls
 │       └── TileActionActivity.kt        # Transparent activity for tile button actions
-├── build.gradle.kts       # Root build file (AGP 8.2.0, Kotlin 1.9.21)
-├── settings.gradle.kts    # Multi-module settings
+├── build.gradle           # Root build file (AGP 8.2.2, Kotlin 1.9.22, Groovy)
+├── settings.gradle        # Multi-module settings (Groovy)
 ├── gradle.properties      # JVM args, AndroidX flags
 └── SKILL.md               # This file
 ```
@@ -48,7 +50,7 @@ export JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64
 
 ## Versioning
 - Current version: **1.0.0** (versionCode: 1)
-- Version is set in both `mobile/build.gradle.kts` and `wear/build.gradle.kts`
+- Version is set in both `mobile/build.gradle` and `wear/build.gradle`
 - APK filenames include version via `archivesBaseName` property
 - **Rule**: Only bump version once per release cycle. Don't bump more than once before a release.
 
@@ -80,14 +82,31 @@ The service searches for camera buttons using common content descriptions:
 Strategy: First searches by text, then by content description fuzzy match, then tries clicking parent of matching nodes. Falls back to screen tap at 50% width, 85% height for shutter.
 
 ### Mobile Module
-- `MainActivity`: Shows service status, watch connection, and "Open Camera" button
+- `MainActivity`: AppCompatActivity with DynamicColors, ViewBinding, CoroutineScope — shows service status, watch connection, settings, and "Open Camera" button
 - `CameraControlService`: AccessibilityService that controls any camera app
 - `WearMessageListenerService`: Background listener forwarding watch commands
-- Material Design 3 (Material You) themed dark UI
+- Card-based Material3 dark UI with section headers, icon circles, bg_card drawables
+
+### Code Conventions (matching NotificationMirror)
+- Groovy `.gradle` build files (not `.gradle.kts`)
+- `AppCompatActivity` base class with `DynamicColors.applyToActivityIfAvailable(this)` in `onCreate`
+- `ViewBinding` for type-safe view access
+- `CoroutineScope(Dispatchers.IO + SupervisorJob())` for async operations
+- `kotlinx.coroutines.tasks.await()` for Wearable API calls
+- `companion object { private const val TAG = "..." }` for logging
+- `Log.d/e/w(TAG, ...)` for all log output
+- Try-catch around all system service calls and Wearable API calls
+- `Toast.makeText` for user feedback
+- `runOnUiThread { }` for UI updates from coroutines
+- `buildConfigField` for BUILD_TIMESTAMP
+- `Theme.Material3.Dark.NoActionBar` with transparent status/navigation bars
+- Card-based layout: `bg_card.xml`, `bg_icon_circle.xml`, `bg_status_active.xml`, `bg_status_inactive.xml`
+- Section headers: uppercase, 12sp bold (9sp on wear), `?colorPrimary`, letterSpacing 0.1
+- List items: icon circle + text columns + chevron_right
 
 ### Wear Module
-- Material-styled round UI with `BoxInsetLayout` for round watch support
-- Outlined buttons with pill shapes for clean WearOS look
+- Card-based Material3 dark UI with ScrollView and rotary/bezel scrolling
+- List-item style controls with icon circles, matching NotificationMirror design
 - Haptic feedback on all button presses
 - **Tile support**: `CameraRemoteTileService` provides quick camera controls from watch face
 - `TileActionActivity` is a transparent activity that handles tile button clicks
@@ -113,14 +132,19 @@ Strategy: First searches by text, then by content description fuzzy match, then 
 - Play Services Wearable 18.1.0
 - ConstraintLayout 2.1.4
 - AndroidX AppCompat 1.6.1
-- Lifecycle Runtime 2.7.0
+- AndroidX Activity KTX 1.8.2
+- Kotlinx Coroutines Android 1.7.3
+- Kotlinx Coroutines Play Services 1.7.3
 
 ### Wear
 - Wear 1.3.0
-- Wear Tiles 1.2.0 + Tiles Material 1.2.0
+- Wear Tiles 1.2.0
 - Play Services Wearable 18.1.0
+- Material Design 1.11.0
 - Guava 31.1-android (for Tiles ListenableFuture)
 - Wearable Support 2.9.0
+- Kotlinx Coroutines Android 1.7.3
+- Kotlinx Coroutines Play Services 1.7.3
 
 ## SDK Configuration
 - Compile SDK: 34
@@ -128,8 +152,8 @@ Strategy: First searches by text, then by content description fuzzy match, then 
 - Min SDK (mobile): 26
 - Min SDK (wear): 30
 - Java: 17
-- Kotlin: 1.9.21
-- AGP: 8.2.0
+- Kotlin: 1.9.22
+- AGP: 8.2.2
 - Gradle: 8.2
 
 ## Features
