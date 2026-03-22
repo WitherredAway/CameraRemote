@@ -14,7 +14,7 @@ android {
         versionCode = 1
         versionName = "1.0.0"
 
-        setProperty("archivesBaseName", "CameraRemote-mobile-v${versionName}")
+        setProperty("archivesBaseName", "CameraRemote-Phone-v${versionName}")
     }
 
     buildTypes {

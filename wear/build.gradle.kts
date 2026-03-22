@@ -14,7 +14,7 @@ android {
         versionCode = 1
         versionName = "1.0.0"
 
-        setProperty("archivesBaseName", "CameraRemote-wear-v${versionName}")
+        setProperty("archivesBaseName", "CameraRemote-Watch-v${versionName}")
     }
 
     buildTypes {

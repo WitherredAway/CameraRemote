@@ -39,8 +39,9 @@ export JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64
 ```
 
 ## APK Output Locations
-- Mobile: `mobile/build/outputs/apk/debug/CameraRemote-mobile-v{version}-debug.apk`
-- Wear: `wear/build/outputs/apk/debug/CameraRemote-wear-v{version}-debug.apk`
+- Phone: `mobile/build/outputs/apk/debug/CameraRemote-Phone-v{version}-debug.apk`
+- Watch: `wear/build/outputs/apk/debug/CameraRemote-Watch-v{version}-debug.apk`
+- Naming convention: `CameraRemote-{Phone|Watch}-v{version}.apk` (strip `-debug` suffix when delivering)
 
 ## Versioning
 - Current version: **1.0.0** (versionCode: 1)
