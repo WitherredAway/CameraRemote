@@ -25,6 +25,10 @@
             </intent-filter>
         </activity>
 
+        <activity
+            android:name=".HelpActivity"
+            android:exported="false" />
+
         <!-- Tile Action handler -->
         <activity
             android:name=".TileActionActivity"

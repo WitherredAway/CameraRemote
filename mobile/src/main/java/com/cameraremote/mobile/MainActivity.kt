@@ -75,6 +75,10 @@ class MainActivity : AppCompatActivity() {
             openCamera()
         }
 
+        binding.collectLogsButton.setOnClickListener {
+            collectAndShareLogs()
+        }
+
         binding.githubButton.setOnClickListener {
             try {
                 startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(GITHUB_URL)))
@@ -259,6 +263,82 @@ class MainActivity : AppCompatActivity() {
                 runOnUiThread {
                     binding.watchStatusIcon.setImageResource(R.drawable.ic_error_circle)
                     binding.watchStatusText.text = "Watch not available"
+                }
+            }
+        }
+    }
+
+    private fun collectAndShareLogs() {
+        Toast.makeText(this, "Collecting logs...", Toast.LENGTH_SHORT).show()
+        scope.launch {
+            try {
+                val sb = StringBuilder()
+                sb.appendLine("=== Camera Remote Debug Logs ===")
+                sb.appendLine("Collected: ${java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss", java.util.Locale.getDefault()).format(java.util.Date())}")
+                sb.appendLine("Device: ${Build.MANUFACTURER} ${Build.MODEL}")
+                sb.appendLine("Android: ${Build.VERSION.RELEASE} (SDK ${Build.VERSION.SDK_INT})")
+                try {
+                    val pInfo = packageManager.getPackageInfo(packageName, 0)
+                    sb.appendLine("App version: ${pInfo.versionName}")
+                } catch (_: Exception) {}
+                sb.appendLine()
+
+                // Collect phone logcat
+                sb.appendLine("=== PHONE LOGCAT ===")
+                try {
+                    val process = Runtime.getRuntime().exec(arrayOf(
+                        "logcat", "-d", "-t", "1000",
+                        "CameraControlService:*", "WearMessageListenerService:*",
+                        "MainActivity:*", "SettingsActivity:*", "*:S"
+                    ))
+                    val reader = process.inputStream.bufferedReader()
+                    val lines = reader.readLines()
+                    reader.close()
+                    process.waitFor()
+                    if (lines.isEmpty()) {
+                        sb.appendLine("(no phone logs found)")
+                    } else {
+                        for (line in lines) {
+                            sb.appendLine(line)
+                        }
+                    }
+                } catch (e: Exception) {
+                    sb.appendLine("Failed to collect phone logs: ${e.message}")
+                }
+
+                // Collect watch logcat via requesting from watch
+                sb.appendLine()
+                sb.appendLine("=== WATCH CONNECTION ===")
+                try {
+                    val nodes = Wearable.getNodeClient(this@MainActivity).connectedNodes.await()
+                    if (nodes.isNotEmpty()) {
+                        sb.appendLine("Watch connected: ${nodes.first().displayName}")
+                    } else {
+                        sb.appendLine("No watch connected")
+                    }
+                } catch (e: Exception) {
+                    sb.appendLine("Watch check failed: ${e.message}")
+                }
+
+                // Service status
+                sb.appendLine()
+                sb.appendLine("=== SERVICE STATUS ===")
+                sb.appendLine("Accessibility service running: ${CameraControlService.isRunning}")
+
+                val logText = sb.toString()
+
+                runOnUiThread {
+                    val shareIntent = Intent(Intent.ACTION_SEND).apply {
+                        type = "text/plain"
+                        putExtra(Intent.EXTRA_SUBJECT, "Camera Remote Debug Logs")
+                        putExtra(Intent.EXTRA_TEXT, logText)
+                    }
+                    startActivity(Intent.createChooser(shareIntent, "Share Logs"))
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to collect logs", e)
+                runOnUiThread {
+                    Toast.makeText(this@MainActivity, "Failed to collect logs", Toast.LENGTH_SHORT).show()
                 }
             }
         }

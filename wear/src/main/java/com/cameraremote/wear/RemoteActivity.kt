@@ -1,5 +1,6 @@
 package com.cameraremote.wear
 
+import android.content.Intent
 import android.graphics.BitmapFactory
 import android.graphics.Color
 import android.os.Build
@@ -82,6 +83,7 @@ class RemoteActivity : AppCompatActivity(), MessageClient.OnMessageReceivedListe
     private var captureCount = 0
     private var lastPreviewUri: String? = null
     private var isRecording = false
+    private var isBursting = false
     private var recordingStartTime = 0L
     private val recordingTimerHandler = Handler(Looper.getMainLooper())
     private val recordingTimerRunnable = object : Runnable {
@@ -236,10 +238,21 @@ class RemoteActivity : AppCompatActivity(), MessageClient.OnMessageReceivedListe
             binding.tvStatus.text = "Deleted"
         }
 
-        // Shutter: tap to capture, long-press for burst mode
-        bindButton(binding.btnCapture, "capture", "Capture")
+        // Shutter: tap to capture (or cancel burst if bursting), long-press for burst mode
+        binding.btnCapture.setOnClickListener {
+            vibrate()
+            if (isBursting) {
+                Log.d(TAG, "Shutter clicked: cancelling burst")
+                isBursting = false
+                sendCommand("cancel_burst")
+            } else {
+                Log.d(TAG, "Shutter clicked: capture")
+                sendCommand("capture")
+            }
+        }
         binding.btnCapture.setOnLongClickListener {
             vibrate()
+            isBursting = true
             sendCommand("burst_capture")
             true
         }
@@ -260,6 +273,12 @@ class RemoteActivity : AppCompatActivity(), MessageClient.OnMessageReceivedListe
 
         // Video mode
         bindButton(binding.btnVideo, "open_video", "Video")
+
+        // Help button
+        binding.btnHelp.setOnClickListener {
+            vibrate()
+            startActivity(Intent(this, HelpActivity::class.java))
+        }
 
         // Timer: tap to start/cancel countdown, long-press to change duration
         binding.btnTimer.setOnClickListener {
@@ -493,15 +512,23 @@ class RemoteActivity : AppCompatActivity(), MessageClient.OnMessageReceivedListe
             "preview_delete_failed" -> "Delete failed"
             "preview_delete_denied" -> "Delete denied"
             "preview_delete_cancelled" -> "Delete cancelled"
+            "burst_cancelled" -> {
+                isBursting = false
+                "Burst cancelled"
+            }
             else -> {
                 // Handle dynamic statuses like "burst_5", "timer_3s"
                 when {
                     status.startsWith("burst_") && status.contains("_of_") -> {
                         // burst_2_of_5 -> "Burst 2/5"
                         val parts = status.removePrefix("burst_").split("_of_")
+                        val current = parts[0].toIntOrNull() ?: 0
+                        val total = parts[1].toIntOrNull() ?: 0
+                        if (current >= total) isBursting = false
                         "Burst ${parts[0]}/${parts[1]}"
                     }
                     status.startsWith("burst_") -> {
+                        isBursting = true
                         val count = status.removePrefix("burst_").toIntOrNull() ?: 0
                         "Burst $count\u00D7"
                     }

@@ -58,6 +58,23 @@
             app:layout_constraintTop_toTopOf="parent"
             app:layout_constraintBottom_toBottomOf="parent" />
 
+        <!-- Help at 2 o'clock (60°) -->
+        <ImageButton
+            android:id="@+id/btnHelp"
+            android:layout_width="34dp"
+            android:layout_height="34dp"
+            android:background="@drawable/bg_btn_help"
+            android:src="@drawable/ic_help"
+            android:tint="#000000"
+            android:scaleType="centerInside"
+            android:padding="5dp"
+            android:clipToOutline="true"
+            android:outlineProvider="background"
+            android:contentDescription="Help"
+            app:layout_constraintCircle="@id/btnCapture"
+            app:layout_constraintCircleAngle="60"
+            app:layout_constraintCircleRadius="85dp" />
+
         <!-- Video at 3 o'clock (90°) -->
         <ImageButton
             android:id="@+id/btnVideo"
