@@ -39,27 +39,14 @@
             android:textColor="@color/outline"
             android:gravity="center" />
 
-        <!-- Flash (yellow) at top middle -->
-        <ImageButton
-            android:id="@+id/btnFlash"
-            android:layout_width="40dp"
-            android:layout_height="40dp"
-            android:layout_gravity="center"
-            android:translationY="-52dp"
-            android:background="@drawable/bg_btn_flash"
-            android:src="@drawable/ic_flash"
-            android:tint="#000000"
-            android:scaleType="centerInside"
-            android:padding="10dp"
-            android:contentDescription="Toggle Flash" />
-
-        <!-- Timer (red) at left middle -->
+        <!-- Timer (red) at left middle — 9 o'clock -->
         <ImageButton
             android:id="@+id/btnTimer"
             android:layout_width="40dp"
             android:layout_height="40dp"
             android:layout_gravity="center"
             android:translationX="-52dp"
+            android:translationY="0dp"
             android:background="@drawable/bg_btn_timer"
             android:src="@drawable/ic_timer"
             android:tint="@android:color/white"
@@ -67,26 +54,28 @@
             android:padding="10dp"
             android:contentDescription="3s Timer" />
 
-        <!-- Video (white) at right middle -->
+        <!-- Flash (yellow) at bottom-left — 7:30 o'clock -->
         <ImageButton
-            android:id="@+id/btnVideo"
+            android:id="@+id/btnFlash"
             android:layout_width="40dp"
             android:layout_height="40dp"
             android:layout_gravity="center"
-            android:translationX="52dp"
-            android:background="@drawable/bg_btn_video"
-            android:src="@drawable/ic_videocam"
+            android:translationX="-37dp"
+            android:translationY="37dp"
+            android:background="@drawable/bg_btn_flash"
+            android:src="@drawable/ic_flash"
             android:tint="#000000"
             android:scaleType="centerInside"
             android:padding="10dp"
-            android:contentDescription="Video Mode" />
+            android:contentDescription="Toggle Flash" />
 
-        <!-- Flip (white) at bottom middle -->
+        <!-- Flip (white) at bottom middle — 6 o'clock -->
         <ImageButton
             android:id="@+id/btnSwitch"
             android:layout_width="40dp"
             android:layout_height="40dp"
             android:layout_gravity="center"
+            android:translationX="0dp"
             android:translationY="52dp"
             android:background="@drawable/bg_btn_switch"
             android:src="@drawable/ic_flip_camera"
@@ -94,6 +83,21 @@
             android:scaleType="centerInside"
             android:padding="10dp"
             android:contentDescription="Switch Camera" />
+
+        <!-- Video (white) at bottom-right — 4:30 o'clock -->
+        <ImageButton
+            android:id="@+id/btnVideo"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:layout_gravity="center"
+            android:translationX="37dp"
+            android:translationY="37dp"
+            android:background="@drawable/bg_btn_video"
+            android:src="@drawable/ic_videocam"
+            android:tint="#000000"
+            android:scaleType="centerInside"
+            android:padding="10dp"
+            android:contentDescription="Video Mode" />
 
         <!-- Shutter (white, large) at center -->
         <ImageButton
