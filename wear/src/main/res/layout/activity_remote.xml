@@ -1,0 +1,243 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@android:color/black">
+
+        <!-- Connection status pill at top -->
+        <TextView
+            android:id="@+id/tvConnection"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:background="@drawable/bg_status_active"
+            android:drawablePadding="6dp"
+            android:fontFamily="sans-serif-medium"
+            android:gravity="center"
+            android:letterSpacing="0.04"
+            android:paddingHorizontal="12dp"
+            android:paddingVertical="4dp"
+            android:text="Checking..."
+            android:textColor="?colorOnSurface"
+            android:textSize="11sp"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintTop_toTopOf="parent" />
+
+        <!-- Status text below connection pill -->
+
+        <TextView
+            android:id="@+id/tvStatus"
+            android:layout_width="150dp"
+            android:layout_height="55dp"
+            android:layout_marginTop="28dp"
+            android:fontFamily="sans-serif-light"
+            android:gravity="center"
+            android:letterSpacing="0.05"
+            android:text="Ready"
+            android:textColor="?colorOnSurfaceVariant"
+            android:textSize="22sp"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintTop_toTopOf="parent" />
+
+        <!-- Shutter (white, large) at center -->
+        <ImageButton
+            android:id="@+id/btnCapture"
+            android:layout_width="70dp"
+            android:layout_height="70dp"
+            android:background="@drawable/bg_btn_shutter"
+            android:scaleType="centerInside"
+            android:clipToOutline="true"
+            android:outlineProvider="background"
+            android:contentDescription="Capture"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintTop_toTopOf="parent"
+            app:layout_constraintBottom_toBottomOf="parent" />
+
+        <!-- Video at 3 o'clock (90°) -->
+        <ImageButton
+            android:id="@+id/btnVideo"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:background="@drawable/bg_btn_video"
+            android:src="@drawable/ic_videocam"
+            android:tint="#000000"
+            android:scaleType="centerInside"
+            android:padding="8dp"
+            android:clipToOutline="true"
+            android:outlineProvider="background"
+            android:contentDescription="Video Mode"
+            app:layout_constraintCircle="@id/btnCapture"
+            app:layout_constraintCircleAngle="90"
+            app:layout_constraintCircleRadius="85dp" />
+
+        <!-- Burst Timer at 4 o'clock (120°) -->
+        <ImageButton
+            android:id="@+id/btnBurstTimer"
+            android:layout_width="34dp"
+            android:layout_height="34dp"
+            android:background="@drawable/bg_btn_burst"
+            android:src="@drawable/ic_burst"
+            android:tint="#000000"
+            android:scaleType="centerInside"
+            android:padding="5dp"
+            android:clipToOutline="true"
+            android:outlineProvider="background"
+            android:contentDescription="Burst Timer"
+            app:layout_constraintCircle="@id/btnCapture"
+            app:layout_constraintCircleAngle="120"
+            app:layout_constraintCircleRadius="85dp" />
+
+        <!-- Flash at 5 o'clock (150°) -->
+        <ImageButton
+            android:id="@+id/btnFlash"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:background="@drawable/bg_btn_flash"
+            android:src="@drawable/ic_flash"
+            android:tint="#000000"
+            android:scaleType="centerInside"
+            android:padding="8dp"
+            android:clipToOutline="true"
+            android:outlineProvider="background"
+            android:contentDescription="Toggle Flash"
+            app:layout_constraintCircle="@id/btnCapture"
+            app:layout_constraintCircleAngle="150"
+            app:layout_constraintCircleRadius="85dp" />
+
+        <!-- Switch Camera at 6 o'clock (180°) -->
+        <ImageButton
+            android:id="@+id/btnSwitch"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:background="@drawable/bg_btn_switch"
+            android:src="@drawable/ic_flip_camera"
+            android:tint="#000000"
+            android:scaleType="centerInside"
+            android:padding="8dp"
+            android:clipToOutline="true"
+            android:outlineProvider="background"
+            android:contentDescription="Switch Camera"
+            app:layout_constraintCircle="@id/btnCapture"
+            app:layout_constraintCircleAngle="180"
+            app:layout_constraintCircleRadius="85dp" />
+
+        <!-- Timer at 7 o'clock (210°) -->
+        <ImageButton
+            android:id="@+id/btnTimer"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:background="@drawable/bg_btn_timer"
+            android:src="@drawable/ic_timer"
+            android:tint="#000000"
+            android:scaleType="centerInside"
+            android:padding="8dp"
+            android:clipToOutline="true"
+            android:outlineProvider="background"
+            android:contentDescription="Timer"
+            app:layout_constraintCircle="@id/btnCapture"
+            app:layout_constraintCircleAngle="210"
+            app:layout_constraintCircleRadius="85dp" />
+
+        <!-- Preview at 8 o'clock (240°) -->
+        <ImageButton
+            android:id="@+id/btnPreview"
+            android:layout_width="34dp"
+            android:layout_height="34dp"
+            android:background="@drawable/bg_btn_preview"
+            android:src="@drawable/ic_preview"
+            android:tint="#000000"
+            android:scaleType="centerInside"
+            android:padding="5dp"
+            android:clipToOutline="true"
+            android:outlineProvider="background"
+            android:contentDescription="Preview"
+            app:layout_constraintCircle="@id/btnCapture"
+            app:layout_constraintCircleAngle="240"
+            app:layout_constraintCircleRadius="85dp" />
+
+        <!-- Camera at 9 o'clock (270°) -->
+        <ImageButton
+            android:id="@+id/btnOpenCamera"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:background="@drawable/bg_btn_camera"
+            android:clipToOutline="true"
+            android:contentDescription="Open Camera"
+            android:outlineProvider="background"
+            android:padding="8dp"
+            android:scaleType="centerInside"
+            android:src="@drawable/ic_camera"
+            android:tint="#000000"
+            app:layout_constraintCircle="@id/btnCapture"
+            app:layout_constraintCircleAngle="270"
+            app:layout_constraintCircleRadius="85dp" />
+
+        <!-- Preview overlay (hidden by default) -->
+        <FrameLayout
+            android:id="@+id/previewOverlay"
+            android:layout_width="0dp"
+            android:layout_height="0dp"
+            android:background="#CC000000"
+            android:visibility="gone"
+            android:clickable="true"
+            android:focusable="true"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintTop_toTopOf="parent"
+            app:layout_constraintBottom_toBottomOf="parent">
+
+            <ImageView
+                android:id="@+id/previewImage"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:layout_gravity="center"
+                android:layout_marginBottom="50dp"
+                android:layout_marginTop="10dp"
+                android:layout_marginStart="10dp"
+                android:layout_marginEnd="10dp"
+                android:scaleType="fitCenter"
+                android:contentDescription="Preview photo" />
+
+            <LinearLayout
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="bottom|center_horizontal"
+                android:layout_marginBottom="20dp"
+                android:orientation="horizontal">
+
+                <ImageButton
+                    android:id="@+id/btnPreviewDelete"
+                    android:layout_width="40dp"
+                    android:layout_height="40dp"
+                    android:layout_marginEnd="16dp"
+                    android:background="@drawable/bg_btn_timer"
+                    android:src="@android:drawable/ic_menu_delete"
+                    android:tint="#000000"
+                    android:scaleType="centerInside"
+                    android:padding="8dp"
+                    android:clipToOutline="true"
+                    android:outlineProvider="background"
+                    android:contentDescription="Delete" />
+
+                <ImageButton
+                    android:id="@+id/btnPreviewSave"
+                    android:layout_width="40dp"
+                    android:layout_height="40dp"
+                    android:background="@drawable/bg_btn_camera"
+                    android:src="@android:drawable/ic_menu_save"
+                    android:tint="#000000"
+                    android:scaleType="centerInside"
+                    android:padding="8dp"
+                    android:clipToOutline="true"
+                    android:outlineProvider="background"
+                    android:contentDescription="Save" />
+
+            </LinearLayout>
+        </FrameLayout>
+
+</androidx.constraintlayout.widget.ConstraintLayout>

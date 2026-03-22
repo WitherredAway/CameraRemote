@@ -1,0 +1,186 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="?android:colorBackground">
+
+<ScrollView
+    android:layout_width="match_parent"
+    android:layout_height="match_parent">
+
+<LinearLayout
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:paddingHorizontal="16dp"
+    android:paddingTop="20dp"
+    android:paddingBottom="100dp">
+
+<TextView
+    android:layout_width="wrap_content"
+    android:layout_height="wrap_content"
+    android:layout_marginStart="4dp"
+    android:text="Settings"
+    android:textSize="22sp"
+    android:textStyle="bold"
+    android:textColor="?colorOnSurface" />
+
+<!-- ==================== CAMERA CONTROL ==================== -->
+<TextView
+    android:layout_width="wrap_content"
+    android:layout_height="wrap_content"
+    android:layout_marginTop="20dp"
+    android:layout_marginStart="4dp"
+    android:text="CAMERA CONTROL"
+    android:textSize="12sp"
+    android:textStyle="bold"
+    android:textColor="?colorPrimary"
+    android:letterSpacing="0.1" />
+
+<LinearLayout
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:layout_marginTop="8dp"
+    android:orientation="vertical"
+    android:background="@drawable/settings_card_bg"
+    android:padding="16dp">
+
+    <!-- Auto-Open Camera -->
+    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:gravity="center_vertical">
+        <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:orientation="vertical">
+            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Auto-Open Camera" android:textSize="15sp" android:textColor="?colorOnSurface" />
+            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="2dp" android:text="Open camera app automatically when capture is pressed and no camera app is active" android:textSize="12sp" android:textColor="?colorOutline" />
+        </LinearLayout>
+        <com.google.android.material.switchmaterial.SwitchMaterial android:id="@+id/autoOpenCameraSwitch" android:layout_width="wrap_content" android:layout_height="wrap_content" />
+    </LinearLayout>
+
+    <View android:layout_width="match_parent" android:layout_height="1dp" android:layout_marginVertical="14dp" android:background="?colorOutlineVariant" android:alpha="0.3" />
+
+    <!-- Camera Launch Delay -->
+    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Camera Launch Delay" android:textSize="15sp" android:textColor="?colorOnSurface" />
+    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="2dp" android:text="How long to wait for the camera app to open before attempting capture" android:textSize="12sp" android:textColor="?colorOutline" />
+    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="8dp" android:orientation="horizontal" android:gravity="center_vertical">
+        <EditText android:id="@+id/cameraLaunchDelayInput" android:layout_width="80dp" android:layout_height="wrap_content" android:inputType="number" android:textSize="16sp" android:textColor="?colorOnSurface" android:gravity="center" android:padding="10dp" android:background="@drawable/edit_text_bg" />
+        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginStart="12dp" android:text="ms" android:textSize="14sp" android:textColor="?colorOnSurfaceVariant" />
+    </LinearLayout>
+
+    <View android:layout_width="match_parent" android:layout_height="1dp" android:layout_marginVertical="14dp" android:background="?colorOutlineVariant" android:alpha="0.3" />
+
+    <!-- Burst Photo Count -->
+    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Burst Photo Count" android:textSize="15sp" android:textColor="?colorOnSurface" />
+    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="2dp" android:text="How many photos to take in burst mode" android:textSize="12sp" android:textColor="?colorOutline" />
+    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="8dp" android:orientation="horizontal" android:gravity="center_vertical">
+        <EditText android:id="@+id/burstCountInput" android:layout_width="80dp" android:layout_height="wrap_content" android:inputType="number" android:textSize="16sp" android:textColor="?colorOnSurface" android:gravity="center" android:padding="10dp" android:background="@drawable/edit_text_bg" />
+        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginStart="12dp" android:text="photos per 500 ms" android:textSize="14sp" android:textColor="?colorOnSurfaceVariant" />
+    </LinearLayout>
+
+    <View android:layout_width="match_parent" android:layout_height="1dp" android:layout_marginVertical="14dp" android:background="?colorOutlineVariant" android:alpha="0.3" />
+
+    <!-- Shutter Fallback -->
+    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:gravity="center_vertical">
+        <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:orientation="vertical">
+            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Shutter Fallback Tap" android:textSize="15sp" android:textColor="?colorOnSurface" />
+            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="2dp" android:text="Tap the screen if the shutter button can't be found via accessibility" android:textSize="12sp" android:textColor="?colorOutline" />
+        </LinearLayout>
+        <com.google.android.material.switchmaterial.SwitchMaterial android:id="@+id/shutterFallbackSwitch" android:layout_width="wrap_content" android:layout_height="wrap_content" />
+    </LinearLayout>
+
+    <View android:layout_width="match_parent" android:layout_height="1dp" android:layout_marginVertical="14dp" android:background="?colorOutlineVariant" android:alpha="0.3" />
+
+    <!-- Shutter Fallback Position -->
+    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Fallback Tap Position" android:textSize="15sp" android:textColor="?colorOnSurface" />
+    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="2dp" android:text="Vertical position on screen to tap as fallback (percentage from top)" android:textSize="12sp" android:textColor="?colorOutline" />
+    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="8dp" android:orientation="horizontal" android:gravity="center_vertical">
+        <EditText android:id="@+id/fallbackPositionInput" android:layout_width="80dp" android:layout_height="wrap_content" android:inputType="number" android:textSize="16sp" android:textColor="?colorOnSurface" android:gravity="center" android:padding="10dp" android:background="@drawable/edit_text_bg" />
+        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginStart="12dp" android:text="%" android:textSize="14sp" android:textColor="?colorOnSurfaceVariant" />
+    </LinearLayout>
+
+    <View android:layout_width="match_parent" android:layout_height="1dp" android:layout_marginVertical="14dp" android:background="?colorOutlineVariant" android:alpha="0.3" />
+
+    <!-- Gesture Tap Duration -->
+    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Gesture Tap Duration" android:textSize="15sp" android:textColor="?colorOnSurface" />
+    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="2dp" android:text="How long the simulated screen tap lasts" android:textSize="12sp" android:textColor="?colorOutline" />
+    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="8dp" android:orientation="horizontal" android:gravity="center_vertical">
+        <EditText android:id="@+id/gestureTapDurationInput" android:layout_width="80dp" android:layout_height="wrap_content" android:inputType="number" android:textSize="16sp" android:textColor="?colorOnSurface" android:gravity="center" android:padding="10dp" android:background="@drawable/edit_text_bg" />
+        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginStart="12dp" android:text="ms" android:textSize="14sp" android:textColor="?colorOnSurfaceVariant" />
+    </LinearLayout>
+
+    <View android:layout_width="match_parent" android:layout_height="1dp" android:layout_marginVertical="14dp" android:background="?colorOutlineVariant" android:alpha="0.3" />
+
+    <!-- Flash Submenu Delay -->
+    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Flash Submenu Delay" android:textSize="15sp" android:textColor="?colorOnSurface" />
+    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="2dp" android:text="Delay before trying to select on/off after clicking the flash button" android:textSize="12sp" android:textColor="?colorOutline" />
+    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="8dp" android:orientation="horizontal" android:gravity="center_vertical">
+        <EditText android:id="@+id/flashSubmenuDelayInput" android:layout_width="80dp" android:layout_height="wrap_content" android:inputType="number" android:textSize="16sp" android:textColor="?colorOnSurface" android:gravity="center" android:padding="10dp" android:background="@drawable/edit_text_bg" />
+        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginStart="12dp" android:text="ms" android:textSize="14sp" android:textColor="?colorOnSurfaceVariant" />
+    </LinearLayout>
+
+</LinearLayout>
+
+<!-- ==================== WATCH ==================== -->
+<TextView
+    android:layout_width="wrap_content"
+    android:layout_height="wrap_content"
+    android:layout_marginTop="20dp"
+    android:layout_marginStart="4dp"
+    android:text="WATCH"
+    android:textSize="12sp"
+    android:textStyle="bold"
+    android:textColor="?colorPrimary"
+    android:letterSpacing="0.1" />
+
+<LinearLayout
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:layout_marginTop="8dp"
+    android:orientation="vertical"
+    android:background="@drawable/settings_card_bg"
+    android:padding="16dp">
+
+    <!-- Haptic Feedback Duration -->
+    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Haptic Feedback Duration" android:textSize="15sp" android:textColor="?colorOnSurface" />
+    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="2dp" android:text="Vibration duration when pressing buttons on the watch" android:textSize="12sp" android:textColor="?colorOutline" />
+    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="8dp" android:orientation="horizontal" android:gravity="center_vertical">
+        <EditText android:id="@+id/hapticDurationInput" android:layout_width="80dp" android:layout_height="wrap_content" android:inputType="number" android:textSize="16sp" android:textColor="?colorOnSurface" android:gravity="center" android:padding="10dp" android:background="@drawable/edit_text_bg" />
+        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginStart="12dp" android:text="ms" android:textSize="14sp" android:textColor="?colorOnSurfaceVariant" />
+    </LinearLayout>
+
+    <View android:layout_width="match_parent" android:layout_height="1dp" android:layout_marginVertical="14dp" android:background="?colorOutlineVariant" android:alpha="0.3" />
+
+    <!-- Default Timer Duration -->
+    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Default Timer Duration" android:textSize="15sp" android:textColor="?colorOnSurface" />
+    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="2dp" android:text="Countdown duration for the timer button on the watch" android:textSize="12sp" android:textColor="?colorOutline" />
+    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="8dp" android:orientation="horizontal" android:gravity="center_vertical">
+        <EditText android:id="@+id/defaultTimerInput" android:layout_width="80dp" android:layout_height="wrap_content" android:inputType="number" android:textSize="16sp" android:textColor="?colorOnSurface" android:gravity="center" android:padding="10dp" android:background="@drawable/edit_text_bg" />
+        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginStart="12dp" android:text="seconds" android:textSize="14sp" android:textColor="?colorOnSurfaceVariant" />
+    </LinearLayout>
+
+    <View android:layout_width="match_parent" android:layout_height="1dp" android:layout_marginVertical="14dp" android:background="?colorOutlineVariant" android:alpha="0.3" />
+
+    <!-- Vibrate on Countdown -->
+    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:gravity="center_vertical">
+        <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:orientation="vertical">
+            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Vibrate on Countdown" android:textSize="15sp" android:textColor="?colorOnSurface" />
+            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="2dp" android:text="Vibrate the watch each second during timer countdown" android:textSize="12sp" android:textColor="?colorOutline" />
+        </LinearLayout>
+        <com.google.android.material.switchmaterial.SwitchMaterial android:id="@+id/vibrateCountdownSwitch" android:layout_width="wrap_content" android:layout_height="wrap_content" />
+    </LinearLayout>
+
+</LinearLayout>
+
+</LinearLayout>
+</ScrollView>
+
+<com.google.android.material.button.MaterialButton
+    android:id="@+id/saveSettingsButton"
+    android:layout_width="match_parent"
+    android:layout_height="56dp"
+    android:layout_marginHorizontal="16dp"
+    android:layout_marginBottom="24dp"
+    android:layout_gravity="bottom"
+    android:text="Save Settings"
+    android:textAllCaps="false"
+    android:textSize="16sp"
+    android:visibility="gone" />
+
+</FrameLayout>

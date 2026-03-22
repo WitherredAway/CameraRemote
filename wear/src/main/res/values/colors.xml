@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="ic_launcher_background">#FF1B1B1B</color>
+
+    <!-- Surface colors -->
+    <color name="surface">#1B1B1B</color>
+    <color name="surface_container">#2B2B2B</color>
+    <color name="surface_container_high">#333333</color>
+    <color name="surface_bright">#3B3B3B</color>
+    <color name="on_surface">#E6E1E5</color>
+    <color name="on_surface_variant">#CAC4D0</color>
+    <color name="outline">#938F99</color>
+    <color name="outline_variant">#49454F</color>
+
+    <!-- Theme accent colors -->
+    <color name="primary">#D0BCFF</color>
+    <color name="on_primary">#381E72</color>
+    <color name="secondary">#CCC2DC</color>
+    <color name="tertiary">#EFB8C8</color>
+
+    <!-- Pastel button colors -->
+    <color name="btn_shutter">#F5F5F5</color>
+    <color name="btn_flash">#FFE082</color>
+    <color name="btn_timer">#FFCC80</color>
+    <color name="btn_switch">#B0BEC5</color>
+    <color name="btn_video">#EF9A9A</color>
+    <color name="btn_camera">#90CAF9</color>
+    <color name="btn_burst">#A5D6A7</color>
+    <color name="btn_preview">#CE93D8</color>
+
+    <!-- Ripple colors -->
+    <color name="ripple_dark">#30000000</color>
+
+    <!-- Status colors -->
+    <color name="status_green">#4CAF50</color>
+    <color name="status_red">#F44336</color>
+    <color name="status_bg_active">#1A4CAF50</color>
+    <color name="status_bg_inactive">#1AF44336</color>
+
+    <!-- Ripple -->
+    <color name="ripple_white">#30FFFFFF</color>
+</resources>

@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">CameraRemote</string>
+    <string name="accessibility_service_description">CameraRemote uses this service to control your default camera app from your watch. It finds and taps camera buttons (shutter, flash, switch camera) when you press controls on your WearOS watch.</string>
+</resources>
