@@ -130,10 +130,7 @@
             android:layout_height="70dp"
             android:layout_gravity="center"
             android:background="@drawable/bg_btn_shutter"
-            android:src="@drawable/ic_photo_camera"
-            android:tint="#000000"
             android:scaleType="centerInside"
-            android:padding="14dp"
             android:clipToOutline="true"
             android:outlineProvider="background"
             android:contentDescription="Capture" />

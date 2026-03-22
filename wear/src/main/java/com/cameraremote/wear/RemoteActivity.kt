@@ -351,7 +351,7 @@ class RemoteActivity : AppCompatActivity(), MessageClient.OnMessageReceivedListe
             setButtonColor(binding.btnFlash, tertiaryContainer)
             setButtonColor(binding.btnTimer, tertiary)
             setButtonColor(binding.btnSwitch, secondaryContainer)
-            setButtonColor(binding.btnCapture, Color.WHITE)
+            // Shutter keeps its ring drawable — don't override it
 
             binding.tvStatus.setTextColor(primary)
 
