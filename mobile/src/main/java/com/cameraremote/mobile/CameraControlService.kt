@@ -27,6 +27,7 @@ class CameraControlService : AccessibilityService() {
 
     private val handler = Handler(Looper.getMainLooper())
     private lateinit var messageClient: MessageClient
+    private lateinit var settings: SettingsManager
 
     // Common content descriptions for camera controls across popular camera apps
     private val shutterDescriptions = listOf(
@@ -52,6 +53,7 @@ class CameraControlService : AccessibilityService() {
         super.onServiceConnected()
         instance = this
         messageClient = Wearable.getMessageClient(this)
+        settings = SettingsManager(this)
         Log.d(TAG, "CameraControlService connected and ready")
     }
 
@@ -132,8 +134,12 @@ class CameraControlService : AccessibilityService() {
         val root = rootInActiveWindow
         if (root == null) {
             Log.d(TAG, "capture: no active window, opening camera first")
-            openCamera()
-            handler.postDelayed({ captureAfterOpen() }, 1500)
+            if (settings.isAutoOpenCameraEnabled()) {
+                openCamera()
+                handler.postDelayed({ captureAfterOpen() }, settings.getCameraLaunchDelayMs().toLong())
+            } else {
+                sendStatusToWatch("no_camera_app")
+            }
             return
         }
 
@@ -143,8 +149,12 @@ class CameraControlService : AccessibilityService() {
 
         if (!isCameraApp) {
             Log.d(TAG, "capture: not in camera app, opening camera first")
-            openCamera()
-            handler.postDelayed({ captureAfterOpen() }, 1500)
+            if (settings.isAutoOpenCameraEnabled()) {
+                openCamera()
+                handler.postDelayed({ captureAfterOpen() }, settings.getCameraLaunchDelayMs().toLong())
+            } else {
+                sendStatusToWatch("no_camera_app")
+            }
             return
         }
 
@@ -161,8 +171,13 @@ class CameraControlService : AccessibilityService() {
             sendStatusToWatch("captured")
             return
         }
-        Log.d(TAG, "doCapture: shutter not found by description, trying fallback tap")
-        tapShutterFallback()
+        if (settings.isShutterFallbackEnabled()) {
+            Log.d(TAG, "doCapture: shutter not found by description, trying fallback tap")
+            tapShutterFallback()
+        } else {
+            Log.d(TAG, "doCapture: shutter not found and fallback disabled")
+            sendStatusToWatch("shutter_not_found")
+        }
     }
 
     private fun isCameraAppInForeground(root: AccessibilityNodeInfo): Boolean {
@@ -228,7 +243,7 @@ class CameraControlService : AccessibilityService() {
                 } else {
                     findAndClickButton(flashOffDescriptions)
                 }
-            }, 300)
+            }, settings.getFlashSubmenuDelayMs().toLong())
         } else {
             sendStatusToWatch("flash_not_found")
         }
@@ -328,14 +343,15 @@ class CameraControlService : AccessibilityService() {
         wm.defaultDisplay.getMetrics(metrics)
 
         val x = metrics.widthPixels / 2f
-        val y = metrics.heightPixels * 0.85f // 85% down the screen — typical shutter position
+        val fallbackPercent = settings.getShutterFallbackPosition() / 100f
+        val y = metrics.heightPixels * fallbackPercent
 
         val path = Path().apply {
             moveTo(x, y)
         }
 
         val gesture = GestureDescription.Builder()
-            .addStroke(GestureDescription.StrokeDescription(path, 0, 50))
+            .addStroke(GestureDescription.StrokeDescription(path, 0, settings.getGestureTapDurationMs().toLong()))
             .build()
 
         dispatchGesture(gesture, object : GestureResultCallback() {

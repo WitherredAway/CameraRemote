@@ -59,6 +59,10 @@ class MainActivity : AppCompatActivity() {
             }
         }
 
+        binding.settingsButton.setOnClickListener {
+            startActivity(Intent(this, SettingsActivity::class.java))
+        }
+
         binding.openCameraButton.setOnClickListener {
             openCamera()
         }

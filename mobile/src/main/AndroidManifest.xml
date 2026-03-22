@@ -20,6 +20,10 @@
             </intent-filter>
         </activity>
 
+        <activity
+            android:name=".SettingsActivity"
+            android:exported="false" />
+
         <!-- Accessibility Service for controlling the camera app -->
         <service
             android:name=".CameraControlService"

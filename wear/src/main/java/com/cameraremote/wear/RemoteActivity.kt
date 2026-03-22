@@ -11,6 +11,10 @@ import android.widget.ImageButton
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import com.cameraremote.wear.databinding.ActivityRemoteBinding
+import com.google.android.gms.wearable.DataClient
+import com.google.android.gms.wearable.DataEvent
+import com.google.android.gms.wearable.DataEventBuffer
+import com.google.android.gms.wearable.DataMapItem
 import com.google.android.gms.wearable.MessageClient
 import com.google.android.gms.wearable.MessageEvent
 import com.google.android.gms.wearable.Wearable
@@ -21,7 +25,7 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
 
-class RemoteActivity : AppCompatActivity(), MessageClient.OnMessageReceivedListener {
+class RemoteActivity : AppCompatActivity(), MessageClient.OnMessageReceivedListener, DataClient.OnDataChangedListener {
 
     companion object {
         private const val TAG = "RemoteActivity"
@@ -33,6 +37,8 @@ class RemoteActivity : AppCompatActivity(), MessageClient.OnMessageReceivedListe
     private var messageClient: MessageClient? = null
     private var timerSeconds = 3
     private var countdownTimer: CountDownTimer? = null
+    private var hapticDurationMs = 30L
+    private var vibrateOnCountdown = true
 
     override fun onCreate(savedInstanceState: Bundle?) {
         // Don't apply DynamicColors — it overrides our dark theme with the device's
@@ -63,8 +69,29 @@ class RemoteActivity : AppCompatActivity(), MessageClient.OnMessageReceivedListe
         }
         Log.d(TAG, "MessageClient initialized: ${messageClient != null}")
 
+        loadSyncedSettings()
         setupButtons()
         Log.d(TAG, "onCreate completed")
+    }
+
+    private fun loadSyncedSettings() {
+        try {
+            Wearable.getDataClient(this).getDataItems()
+                .addOnSuccessListener { dataItems ->
+                    for (item in dataItems) {
+                        if (item.uri.path == "/camera_remote/settings") {
+                            val dataMap = DataMapItem.fromDataItem(item).dataMap
+                            hapticDurationMs = dataMap.getInt("haptic_duration_ms", 30).toLong()
+                            timerSeconds = dataMap.getInt("default_timer_seconds", 3)
+                            vibrateOnCountdown = dataMap.getBoolean("vibrate_on_countdown", true)
+                            Log.d(TAG, "Loaded settings: haptic=${hapticDurationMs}ms, timer=${timerSeconds}s, vibrateCountdown=$vibrateOnCountdown")
+                        }
+                    }
+                    dataItems.release()
+                }
+        } catch (e: Exception) {
+            Log.w(TAG, "Failed to load synced settings", e)
+        }
     }
 
     private fun setupButtons() {
@@ -120,7 +147,7 @@ class RemoteActivity : AppCompatActivity(), MessageClient.OnMessageReceivedListe
                 runOnUiThread {
                     binding.tvStatus.text = "$secondsLeft"
                 }
-                vibrate()
+                if (vibrateOnCountdown) vibrate()
             }
             override fun onFinish() {
                 runOnUiThread {
@@ -137,8 +164,9 @@ class RemoteActivity : AppCompatActivity(), MessageClient.OnMessageReceivedListe
         Log.d(TAG, "onResume")
         try {
             messageClient?.addListener(this)
+            Wearable.getDataClient(this).addListener(this)
         } catch (e: Exception) {
-            Log.e(TAG, "Failed to add message listener", e)
+            Log.e(TAG, "Failed to add listeners", e)
         }
         checkConnection()
     }
@@ -148,8 +176,9 @@ class RemoteActivity : AppCompatActivity(), MessageClient.OnMessageReceivedListe
         Log.d(TAG, "onPause")
         try {
             messageClient?.removeListener(this)
+            Wearable.getDataClient(this).removeListener(this)
         } catch (e: Exception) {
-            Log.e(TAG, "Failed to remove message listener", e)
+            Log.e(TAG, "Failed to remove listeners", e)
         }
     }
 
@@ -249,9 +278,21 @@ class RemoteActivity : AppCompatActivity(), MessageClient.OnMessageReceivedListe
         }
     }
 
+    override fun onDataChanged(dataEvents: DataEventBuffer) {
+        for (event in dataEvents) {
+            if (event.type == DataEvent.TYPE_CHANGED && event.dataItem.uri.path == "/camera_remote/settings") {
+                val dataMap = DataMapItem.fromDataItem(event.dataItem).dataMap
+                hapticDurationMs = dataMap.getInt("haptic_duration_ms", 30).toLong()
+                timerSeconds = dataMap.getInt("default_timer_seconds", 3)
+                vibrateOnCountdown = dataMap.getBoolean("vibrate_on_countdown", true)
+                Log.d(TAG, "Settings updated: haptic=${hapticDurationMs}ms, timer=${timerSeconds}s, vibrateCountdown=$vibrateOnCountdown")
+            }
+        }
+    }
+
     private fun vibrate() {
         try {
-            vibrator?.vibrate(VibrationEffect.createOneShot(30, VibrationEffect.DEFAULT_AMPLITUDE))
+            vibrator?.vibrate(VibrationEffect.createOneShot(hapticDurationMs, VibrationEffect.DEFAULT_AMPLITUDE))
         } catch (e: Exception) {
             Log.w(TAG, "Vibration failed", e)
         }
