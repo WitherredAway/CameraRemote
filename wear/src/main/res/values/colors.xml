@@ -17,12 +17,14 @@
     <color name="tertiary">#EFB8C8</color>
 
     <!-- Button accent colors -->
-    <color name="btn_camera">#B388FF</color>
-    <color name="btn_capture">#FF5252</color>
-    <color name="btn_timer">#FFD740</color>
-    <color name="btn_flash">#FFAB40</color>
-    <color name="btn_switch">#69F0AE</color>
-    <color name="btn_video">#448AFF</color>
+    <color name="btn_shutter">#FFFFFF</color>
+    <color name="btn_flash">#FFD600</color>
+    <color name="btn_timer">#F44336</color>
+    <color name="btn_switch">#FFFFFF</color>
+    <color name="btn_video">#FFFFFF</color>
+
+    <!-- Ripple for dark icons on white buttons -->
+    <color name="ripple_dark">#40000000</color>
 
     <!-- Status colors -->
     <color name="status_green">#4CAF50</color>

@@ -8,6 +8,8 @@ import android.os.Bundle
 import android.provider.MediaStore
 import android.provider.Settings
 import android.util.Log
+import android.util.TypedValue
+import android.view.View
 import android.view.accessibility.AccessibilityManager
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
@@ -25,6 +27,8 @@ class MainActivity : AppCompatActivity() {
     companion object {
         private const val TAG = "MainActivity"
         private const val GITHUB_URL = "https://github.com/WitherredAway/CameraRemote"
+        private const val DISCORD_URL = "https://discord.gg/gK6wQywwzb"
+        private const val KOFI_URL = "https://ko-fi.com/wthrr"
     }
 
     private lateinit var binding: ActivityMainBinding
@@ -36,8 +40,15 @@ class MainActivity : AppCompatActivity() {
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
-        binding.versionText.text = "v${BuildConfig.VERSION_NAME}"
-        binding.lastUpdatedText.text = "Built ${BuildConfig.BUILD_TIMESTAMP}"
+        binding.lastUpdatedText.text = "Last updated: ${BuildConfig.BUILD_TIMESTAMP}"
+
+        // Show current version immediately
+        try {
+            val pInfo = packageManager.getPackageInfo(packageName, 0)
+            binding.updateTitle.text = "v${pInfo.versionName} \u2014 Checking for updates..."
+        } catch (_: Exception) {
+            binding.updateTitle.text = "Checking for updates..."
+        }
 
         binding.enableServiceButton.setOnClickListener {
             try {
@@ -59,12 +70,106 @@ class MainActivity : AppCompatActivity() {
                 Log.e(TAG, "Failed to open GitHub", e)
             }
         }
+
+        binding.discordButton.setOnClickListener {
+            try {
+                startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(DISCORD_URL)))
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to open Discord", e)
+            }
+        }
+
+        binding.kofiButton.setOnClickListener {
+            try {
+                startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(KOFI_URL)))
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to open Ko-fi", e)
+            }
+        }
+
+        checkForUpdates()
     }
 
     override fun onResume() {
         super.onResume()
         updateServiceStatus()
         updateWatchConnection()
+        checkForUpdates()
+    }
+
+    private fun checkForUpdates() {
+        val checker = UpdateChecker(this)
+        checker.checkForUpdate { info ->
+            runOnUiThread {
+                if (info != null && info.isUpdateAvailable) {
+                    binding.updateTitle.text = "Update available"
+                    binding.updateTitle.setTextColor(getColor(com.google.android.material.R.color.design_default_color_primary))
+                    binding.updateSubtitle.visibility = View.VISIBLE
+                    binding.updateSubtitle.text = "v${info.currentVersion} \u2192 v${info.latestVersion}"
+                    binding.updateButtonsRow.visibility = View.VISIBLE
+
+                    binding.updateButton.setOnClickListener {
+                        if (info.downloadUrl.isNotEmpty()) {
+                            checker.downloadAndInstall(info.downloadUrl)
+                            binding.updateButton.isEnabled = false
+                            binding.updateButton.text = "Downloading..."
+                        }
+                    }
+
+                    if (info.watchDownloadUrl.isNotEmpty()) {
+                        binding.updateWatchButton.visibility = View.VISIBLE
+                        binding.updateWatchButton.setOnClickListener {
+                            binding.updateWatchButton.isEnabled = false
+                            binding.updateWatchButton.text = "Downloading..."
+                            checker.downloadWatchApk(info.watchDownloadUrl) { file ->
+                                runOnUiThread {
+                                    if (file != null) {
+                                        binding.updateWatchButton.text = "Downloaded"
+                                        Toast.makeText(
+                                            this,
+                                            "Watch APK saved to ${file.absolutePath}",
+                                            Toast.LENGTH_LONG
+                                        ).show()
+                                    } else {
+                                        binding.updateWatchButton.isEnabled = true
+                                        binding.updateWatchButton.text = "Watch APK"
+                                        Toast.makeText(
+                                            this,
+                                            "Failed to download watch APK",
+                                            Toast.LENGTH_SHORT
+                                        ).show()
+                                    }
+                                }
+                            }
+                        }
+                    } else {
+                        binding.updateWatchButton.visibility = View.GONE
+                    }
+                } else if (info != null) {
+                    val versionName = info.currentVersion.ifEmpty {
+                        try {
+                            packageManager.getPackageInfo(packageName, 0).versionName
+                        } catch (_: Exception) { "?" }
+                    }
+                    binding.updateTitle.text = "Up to date \u2014 v$versionName"
+                    val tv = TypedValue()
+                    theme.resolveAttribute(com.google.android.material.R.attr.colorOnSurfaceVariant, tv, true)
+                    binding.updateTitle.setTextColor(tv.data)
+                    binding.updateSubtitle.visibility = View.GONE
+                    binding.updateButtonsRow.visibility = View.GONE
+                } else {
+                    val versionName = try {
+                        packageManager.getPackageInfo(packageName, 0).versionName
+                    } catch (_: Exception) { "?" }
+                    binding.updateTitle.text = "v$versionName \u2014 could not check for updates"
+                    val tv = TypedValue()
+                    theme.resolveAttribute(com.google.android.material.R.attr.colorOnSurfaceVariant, tv, true)
+                    binding.updateTitle.setTextColor(tv.data)
+                    binding.updateSubtitle.visibility = View.GONE
+                    binding.updateButtonsRow.visibility = View.GONE
+                }
+            }
+        }
     }
 
     private fun updateServiceStatus() {

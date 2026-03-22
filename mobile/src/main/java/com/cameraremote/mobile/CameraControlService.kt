@@ -2,13 +2,9 @@ package com.cameraremote.mobile
 
 import android.accessibilityservice.AccessibilityService
 import android.accessibilityservice.GestureDescription
-import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
-import android.content.IntentFilter
 import android.graphics.Path
-import android.graphics.Rect
-import android.os.Build
 import android.os.Handler
 import android.os.Looper
 import android.provider.MediaStore
@@ -24,10 +20,9 @@ class CameraControlService : AccessibilityService() {
 
     companion object {
         const val TAG = "CameraControlService"
-        const val ACTION_CAMERA_COMMAND = "com.cameraremote.ACTION_CAMERA_COMMAND"
-        const val EXTRA_COMMAND = "command"
-        var isRunning = false
+        var instance: CameraControlService? = null
             private set
+        val isRunning: Boolean get() = instance != null
     }
 
     private val handler = Handler(Looper.getMainLooper())
@@ -53,26 +48,10 @@ class CameraControlService : AccessibilityService() {
         "start recording", "record video", "movie", "camcorder"
     )
 
-    private val commandReceiver = object : BroadcastReceiver() {
-        override fun onReceive(context: Context, intent: Intent) {
-            val command = intent.getStringExtra(EXTRA_COMMAND) ?: return
-            Log.d(TAG, "Received command: $command")
-            handleCommand(command)
-        }
-    }
-
     override fun onServiceConnected() {
         super.onServiceConnected()
-        isRunning = true
+        instance = this
         messageClient = Wearable.getMessageClient(this)
-
-        val filter = IntentFilter(ACTION_CAMERA_COMMAND)
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            registerReceiver(commandReceiver, filter, Context.RECEIVER_NOT_EXPORTED)
-        } else {
-            registerReceiver(commandReceiver, filter)
-        }
-
         Log.d(TAG, "CameraControlService connected and ready")
     }
 
@@ -86,15 +65,12 @@ class CameraControlService : AccessibilityService() {
 
     override fun onDestroy() {
         super.onDestroy()
-        isRunning = false
-        try {
-            unregisterReceiver(commandReceiver)
-        } catch (e: Exception) {
-            // Already unregistered
-        }
+        instance = null
+        Log.d(TAG, "CameraControlService destroyed")
     }
 
-    private fun handleCommand(command: String) {
+    fun handleCommand(command: String) {
+        Log.d(TAG, "handleCommand: $command")
         when (command) {
             "open_camera" -> openCamera()
             "take_photo" -> takePhoto()
@@ -146,13 +122,35 @@ class CameraControlService : AccessibilityService() {
     }
 
     private fun takePhoto() {
+        Log.d(TAG, "takePhoto: attempting to find and click shutter")
+        // Auto-open camera if it isn't already open
+        val root = rootInActiveWindow
+        if (root == null) {
+            Log.d(TAG, "takePhoto: no active window, opening camera first")
+            openCamera()
+            // Wait for camera to open then try again
+            handler.postDelayed({ takePhotoAfterOpen() }, 1500)
+            return
+        }
+        root.recycle()
+
         // Strategy 1: Find and click the shutter button via accessibility tree
         if (findAndClickButton(shutterDescriptions)) {
             sendStatusToWatch("photo_taken")
             return
         }
 
+        Log.d(TAG, "takePhoto: shutter not found by description, trying fallback tap")
         // Strategy 2: Tap the center-bottom of the screen (common shutter location)
+        tapShutterFallback()
+    }
+
+    private fun takePhotoAfterOpen() {
+        Log.d(TAG, "takePhotoAfterOpen: retrying after camera open")
+        if (findAndClickButton(shutterDescriptions)) {
+            sendStatusToWatch("photo_taken")
+            return
+        }
         tapShutterFallback()
     }
 

@@ -6,233 +6,107 @@
     android:layout_height="match_parent"
     android:background="@color/surface">
 
-    <ScrollView
-        android:id="@+id/scrollView"
+    <FrameLayout
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:fillViewport="true"
-        android:focusable="true"
         app:boxedEdges="all">
 
-        <LinearLayout
-            android:layout_width="match_parent"
+        <!-- Connection status pill at top -->
+        <TextView
+            android:id="@+id/tvConnection"
+            android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:orientation="vertical"
-            android:gravity="center_horizontal"
-            android:paddingTop="8dp"
-            android:paddingBottom="16dp">
+            android:layout_gravity="top|center_horizontal"
+            android:layout_marginTop="4dp"
+            android:paddingHorizontal="12dp"
+            android:paddingVertical="3dp"
+            android:background="@drawable/bg_status_active"
+            android:drawablePadding="6dp"
+            android:text="Checking..."
+            android:textSize="10sp"
+            android:textColor="@color/on_surface"
+            android:gravity="center" />
 
-            <!-- Connection status pill -->
-            <TextView
-                android:id="@+id/tvConnection"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:paddingHorizontal="12dp"
-                android:paddingVertical="4dp"
-                android:background="@drawable/bg_status_active"
-                android:drawablePadding="6dp"
-                android:text="Checking..."
-                android:textSize="11sp"
-                android:textColor="@color/on_surface"
-                android:gravity="center" />
+        <!-- Status text below connection pill -->
+        <TextView
+            android:id="@+id/tvStatus"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="top|center_horizontal"
+            android:layout_marginTop="24dp"
+            android:text="Ready"
+            android:textSize="9sp"
+            android:textColor="@color/outline"
+            android:gravity="center" />
 
-            <!-- Status text -->
-            <TextView
-                android:id="@+id/tvStatus"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="4dp"
-                android:text="Ready"
-                android:textSize="10sp"
-                android:textColor="@color/outline"
-                android:gravity="center" />
+        <!-- Flash (yellow) at top middle -->
+        <ImageButton
+            android:id="@+id/btnFlash"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:layout_gravity="center"
+            android:translationY="-52dp"
+            android:background="@drawable/bg_btn_flash"
+            android:src="@drawable/ic_flash"
+            android:tint="#000000"
+            android:scaleType="centerInside"
+            android:padding="10dp"
+            android:contentDescription="Toggle Flash" />
 
-            <!-- Row 1: Camera, Capture, Timer -->
-            <LinearLayout
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="10dp"
-                android:orientation="horizontal"
-                android:gravity="center">
+        <!-- Timer (red) at left middle -->
+        <ImageButton
+            android:id="@+id/btnTimer"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:layout_gravity="center"
+            android:translationX="-52dp"
+            android:background="@drawable/bg_btn_timer"
+            android:src="@drawable/ic_timer"
+            android:tint="@android:color/white"
+            android:scaleType="centerInside"
+            android:padding="10dp"
+            android:contentDescription="3s Timer" />
 
-                <!-- Open Camera -->
-                <LinearLayout
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:orientation="vertical"
-                    android:gravity="center_horizontal"
-                    android:layout_marginHorizontal="6dp">
+        <!-- Video (white) at right middle -->
+        <ImageButton
+            android:id="@+id/btnVideo"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:layout_gravity="center"
+            android:translationX="52dp"
+            android:background="@drawable/bg_btn_video"
+            android:src="@drawable/ic_videocam"
+            android:tint="#000000"
+            android:scaleType="centerInside"
+            android:padding="10dp"
+            android:contentDescription="Video Mode" />
 
-                    <ImageButton
-                        android:id="@+id/btnOpenCamera"
-                        android:layout_width="48dp"
-                        android:layout_height="48dp"
-                        android:background="@drawable/bg_btn_camera"
-                        android:src="@drawable/ic_photo_camera"
-                        android:tint="@android:color/white"
-                        android:scaleType="centerInside"
-                        android:padding="12dp"
-                        android:contentDescription="Open Camera" />
+        <!-- Flip (white) at bottom middle -->
+        <ImageButton
+            android:id="@+id/btnSwitch"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:layout_gravity="center"
+            android:translationY="52dp"
+            android:background="@drawable/bg_btn_switch"
+            android:src="@drawable/ic_flip_camera"
+            android:tint="#000000"
+            android:scaleType="centerInside"
+            android:padding="10dp"
+            android:contentDescription="Switch Camera" />
 
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="4dp"
-                        android:text="Open"
-                        android:textSize="9sp"
-                        android:textColor="@color/on_surface_variant" />
-                </LinearLayout>
+        <!-- Shutter (white, large) at center -->
+        <ImageButton
+            android:id="@+id/btnCapture"
+            android:layout_width="64dp"
+            android:layout_height="64dp"
+            android:layout_gravity="center"
+            android:background="@drawable/bg_btn_shutter"
+            android:src="@drawable/ic_photo_camera"
+            android:tint="#000000"
+            android:scaleType="centerInside"
+            android:padding="16dp"
+            android:contentDescription="Take Photo" />
 
-                <!-- Capture -->
-                <LinearLayout
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:orientation="vertical"
-                    android:gravity="center_horizontal"
-                    android:layout_marginHorizontal="6dp">
-
-                    <ImageButton
-                        android:id="@+id/btnCapture"
-                        android:layout_width="56dp"
-                        android:layout_height="56dp"
-                        android:background="@drawable/bg_btn_capture"
-                        android:src="@drawable/ic_photo_camera"
-                        android:tint="@android:color/white"
-                        android:scaleType="centerInside"
-                        android:padding="14dp"
-                        android:contentDescription="Take Photo" />
-
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="4dp"
-                        android:text="Capture"
-                        android:textSize="9sp"
-                        android:textColor="@color/on_surface_variant" />
-                </LinearLayout>
-
-                <!-- Timer -->
-                <LinearLayout
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:orientation="vertical"
-                    android:gravity="center_horizontal"
-                    android:layout_marginHorizontal="6dp">
-
-                    <ImageButton
-                        android:id="@+id/btnTimer"
-                        android:layout_width="48dp"
-                        android:layout_height="48dp"
-                        android:background="@drawable/bg_btn_timer"
-                        android:src="@drawable/ic_timer"
-                        android:tint="@android:color/white"
-                        android:scaleType="centerInside"
-                        android:padding="12dp"
-                        android:contentDescription="3s Timer" />
-
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="4dp"
-                        android:text="Timer"
-                        android:textSize="9sp"
-                        android:textColor="@color/on_surface_variant" />
-                </LinearLayout>
-            </LinearLayout>
-
-            <!-- Row 2: Flash, Switch, Video -->
-            <LinearLayout
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="10dp"
-                android:orientation="horizontal"
-                android:gravity="center">
-
-                <!-- Flash -->
-                <LinearLayout
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:orientation="vertical"
-                    android:gravity="center_horizontal"
-                    android:layout_marginHorizontal="6dp">
-
-                    <ImageButton
-                        android:id="@+id/btnFlash"
-                        android:layout_width="48dp"
-                        android:layout_height="48dp"
-                        android:background="@drawable/bg_btn_flash"
-                        android:src="@drawable/ic_flash"
-                        android:tint="@android:color/white"
-                        android:scaleType="centerInside"
-                        android:padding="12dp"
-                        android:contentDescription="Toggle Flash" />
-
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="4dp"
-                        android:text="Flash"
-                        android:textSize="9sp"
-                        android:textColor="@color/on_surface_variant" />
-                </LinearLayout>
-
-                <!-- Switch -->
-                <LinearLayout
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:orientation="vertical"
-                    android:gravity="center_horizontal"
-                    android:layout_marginHorizontal="6dp">
-
-                    <ImageButton
-                        android:id="@+id/btnSwitch"
-                        android:layout_width="48dp"
-                        android:layout_height="48dp"
-                        android:background="@drawable/bg_btn_switch"
-                        android:src="@drawable/ic_flip_camera"
-                        android:tint="@android:color/white"
-                        android:scaleType="centerInside"
-                        android:padding="12dp"
-                        android:contentDescription="Switch Camera" />
-
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="4dp"
-                        android:text="Switch"
-                        android:textSize="9sp"
-                        android:textColor="@color/on_surface_variant" />
-                </LinearLayout>
-
-                <!-- Video -->
-                <LinearLayout
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:orientation="vertical"
-                    android:gravity="center_horizontal"
-                    android:layout_marginHorizontal="6dp">
-
-                    <ImageButton
-                        android:id="@+id/btnVideo"
-                        android:layout_width="48dp"
-                        android:layout_height="48dp"
-                        android:background="@drawable/bg_btn_video"
-                        android:src="@drawable/ic_videocam"
-                        android:tint="@android:color/white"
-                        android:scaleType="centerInside"
-                        android:padding="12dp"
-                        android:contentDescription="Video Mode" />
-
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="4dp"
-                        android:text="Video"
-                        android:textSize="9sp"
-                        android:textColor="@color/on_surface_variant" />
-                </LinearLayout>
-            </LinearLayout>
-
-        </LinearLayout>
-    </ScrollView>
+    </FrameLayout>
 </androidx.wear.widget.BoxInsetLayout>

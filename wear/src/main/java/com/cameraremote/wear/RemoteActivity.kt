@@ -6,7 +6,6 @@ import android.os.VibrationEffect
 import android.os.Vibrator
 import android.os.VibratorManager
 import android.util.Log
-import android.view.MotionEvent
 import android.widget.ImageButton
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
@@ -60,24 +59,8 @@ class RemoteActivity : AppCompatActivity(), MessageClient.OnMessageReceivedListe
         }
         Log.d(TAG, "MessageClient initialized: ${messageClient != null}")
 
-        setupRotaryInput()
         setupButtons()
         Log.d(TAG, "onCreate completed")
-    }
-
-    private fun setupRotaryInput() {
-        // Request focus after layout is ready so rotary/bezel scrolling works
-        binding.scrollView.post {
-            binding.scrollView.isFocusableInTouchMode = true
-            binding.scrollView.requestFocus()
-        }
-        binding.scrollView.setOnGenericMotionListener { _, event ->
-            if (event.action == MotionEvent.ACTION_SCROLL) {
-                val delta = -event.getAxisValue(MotionEvent.AXIS_SCROLL) * 200f
-                binding.scrollView.smoothScrollBy(0, delta.toInt())
-                true
-            } else false
-        }
     }
 
     private fun setupButtons() {
@@ -90,7 +73,6 @@ class RemoteActivity : AppCompatActivity(), MessageClient.OnMessageReceivedListe
             Log.d(TAG, "Button bound: $label -> ${button.id}")
         }
 
-        bindButton(binding.btnOpenCamera, "open_camera", "Open Camera")
         bindButton(binding.btnCapture, "take_photo", "Capture")
         bindButton(binding.btnTimer, "take_photo_timer", "Timer")
         bindButton(binding.btnFlash, "toggle_flash", "Flash")

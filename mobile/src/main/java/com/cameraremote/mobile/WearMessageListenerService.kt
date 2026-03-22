@@ -1,8 +1,11 @@
 package com.cameraremote.mobile
 
 import android.content.Intent
+import android.os.Handler
+import android.os.Looper
 import android.util.Log
 import com.google.android.gms.wearable.MessageEvent
+import com.google.android.gms.wearable.Wearable
 import com.google.android.gms.wearable.WearableListenerService
 
 class WearMessageListenerService : WearableListenerService() {
@@ -16,13 +19,13 @@ class WearMessageListenerService : WearableListenerService() {
             val command = String(messageEvent.data)
             Log.d(TAG, "Received command from watch: $command")
 
-            if (CameraControlService.isRunning) {
-                // Send command to the AccessibilityService via broadcast
-                val intent = Intent(CameraControlService.ACTION_CAMERA_COMMAND).apply {
-                    setPackage(packageName)
-                    putExtra(CameraControlService.EXTRA_COMMAND, command)
+            val service = CameraControlService.instance
+            if (service != null) {
+                Log.d(TAG, "Forwarding command to CameraControlService: $command")
+                // Run on main thread since AccessibilityService needs it
+                Handler(Looper.getMainLooper()).post {
+                    service.handleCommand(command)
                 }
-                sendBroadcast(intent)
             } else {
                 Log.w(TAG, "AccessibilityService not running. Command ignored: $command")
                 // If open_camera was requested, we can still do that without accessibility service
@@ -37,18 +40,17 @@ class WearMessageListenerService : WearableListenerService() {
                     }
                 }
                 // Send status that service isn't enabled
-                sendServiceNotRunningStatus(messageEvent)
+                sendServiceNotRunningStatus(command)
             }
         }
     }
 
-    private fun sendServiceNotRunningStatus(messageEvent: MessageEvent) {
-        val command = String(messageEvent.data)
+    private fun sendServiceNotRunningStatus(command: String) {
         if (command != "open_camera") {
-            com.google.android.gms.wearable.Wearable.getNodeClient(this).connectedNodes
+            Wearable.getNodeClient(this).connectedNodes
                 .addOnSuccessListener { nodes ->
                     for (node in nodes) {
-                        com.google.android.gms.wearable.Wearable.getMessageClient(this)
+                        Wearable.getMessageClient(this)
                             .sendMessage(
                                 node.id,
                                 "/camera_remote/status",
