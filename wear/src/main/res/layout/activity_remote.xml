@@ -58,8 +58,8 @@
             android:layout_width="36dp"
             android:layout_height="36dp"
             android:layout_gravity="center"
-            android:translationX="49.5dp"
-            android:translationY="49.5dp"
+            android:translationX="39.5dp"
+            android:translationY="52.5dp"
             android:background="@drawable/bg_btn_flash"
             android:src="@drawable/ic_flash"
             android:tint="#000000"
@@ -95,8 +95,8 @@
             android:layout_width="28dp"
             android:layout_height="28dp"
             android:layout_gravity="center"
-            android:translationX="-65dp"
-            android:translationY="37dp"
+            android:translationX="-75dp"
+            android:translationY="43dp"
             android:background="@drawable/bg_btn_preview"
             android:src="@drawable/ic_preview"
             android:tint="#000000"
@@ -112,8 +112,8 @@
             android:layout_width="28dp"
             android:layout_height="28dp"
             android:layout_gravity="center"
-            android:translationX="65dp"
-            android:translationY="37dp"
+            android:translationX="75dp"
+            android:translationY="43dp"
             android:background="@drawable/bg_btn_burst"
             android:src="@drawable/ic_burst"
             android:tint="#000000"
@@ -155,8 +155,8 @@
             android:clipToOutline="true"
             android:outlineProvider="background"
             android:contentDescription="Timer"
-            android:translationX="-49.5dp"
-            android:translationY="49.5dp" />
+            android:translationX="-39.5dp"
+            android:translationY="52.5dp" />
 
         <ImageButton
             android:id="@+id/btnCapture"
