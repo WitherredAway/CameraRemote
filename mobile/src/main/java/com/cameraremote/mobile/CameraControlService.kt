@@ -82,7 +82,10 @@ class CameraControlService : AccessibilityService() {
     private val switchCameraDescriptions = listOf(
         "switch camera", "flip camera", "toggle camera", "front camera",
         "rear camera", "rotate camera", "selfie",
-        "change camera", "switch to front", "switch to rear"
+        "change camera", "switch to front", "switch to rear",
+        "camera switch", "swap camera", "camera flip",
+        "facing", "switch lens", "lens switch",
+        "reverse camera", "camera facing", "switch"
     )
     private val flashDescriptions = listOf(
         "flash mode", "toggle flash", "flash button",
@@ -418,8 +421,34 @@ class CameraControlService : AccessibilityService() {
         if (findAndClickButton(switchCameraDescriptions)) {
             sendStatusToWatch("camera_switched")
         } else {
+            // Dump all visible nodes to help debug unsupported camera apps
+            dumpVisibleNodes("switchCamera")
             sendStatusToWatch("switch_not_found")
         }
+    }
+
+    /**
+     * Log all visible clickable nodes in the current window for debugging.
+     * Helps identify button descriptions on unsupported camera apps.
+     */
+    private fun dumpVisibleNodes(context: String) {
+        val rootNode = rootInActiveWindow ?: return
+        val allNodes = findAllNodes(rootNode)
+        Log.d(TAG, "=== VISIBLE NODES ($context) ===")
+        for (node in allNodes) {
+            if (node.isVisibleToUser) {
+                val desc = node.contentDescription?.toString() ?: ""
+                val text = node.text?.toString() ?: ""
+                val cls = node.className?.toString() ?: ""
+                val clickable = node.isClickable
+                if (desc.isNotEmpty() || text.isNotEmpty()) {
+                    Log.d(TAG, "  desc=\"$desc\" text=\"$text\" class=$cls clickable=$clickable")
+                }
+            }
+        }
+        Log.d(TAG, "=== END NODES ===")
+        recycleNodes(allNodes)
+        rootNode.recycle()
     }
 
     /**
