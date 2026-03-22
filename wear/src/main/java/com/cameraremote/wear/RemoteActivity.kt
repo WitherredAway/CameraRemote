@@ -1,5 +1,9 @@
 package com.cameraremote.wear
 
+import android.content.res.ColorStateList
+import android.graphics.Color
+import android.graphics.drawable.GradientDrawable
+import android.graphics.drawable.RippleDrawable
 import android.os.Build
 import android.os.Bundle
 import android.os.CountDownTimer
@@ -10,7 +14,6 @@ import android.util.Log
 import android.view.MotionEvent
 import android.view.ViewConfiguration
 import android.widget.ImageButton
-import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.InputDeviceCompat
 import androidx.core.view.MotionEventCompat
@@ -50,12 +53,18 @@ class RemoteActivity : AppCompatActivity(), MessageClient.OnMessageReceivedListe
     private var vibrateOnCountdown = true
 
     override fun onCreate(savedInstanceState: Bundle?) {
-        // Don't apply DynamicColors — it overrides our dark theme with the device's
-        // Material You color (which may be green/teal instead of our intended dark bg)
+        // Apply DynamicColors so we can extract the user's Material You palette
+        DynamicColors.applyToActivityIfAvailable(this)
         super.onCreate(savedInstanceState)
         Log.d(TAG, "onCreate started")
         binding = ActivityRemoteBinding.inflate(layoutInflater)
         setContentView(binding.root)
+
+        // Force black background (DynamicColors may override it)
+        binding.root.setBackgroundColor(Color.BLACK)
+
+        // Apply Material You colors to buttons
+        applyDynamicButtonColors()
 
         vibrator = try {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
@@ -147,7 +156,6 @@ class RemoteActivity : AppCompatActivity(), MessageClient.OnMessageReceivedListe
             }
             vibrate()
             binding.tvStatus.text = "Timer: ${timerSeconds}s"
-            Toast.makeText(this, "Timer: ${timerSeconds}s", Toast.LENGTH_SHORT).show()
             true
         }
     }
@@ -180,7 +188,6 @@ class RemoteActivity : AppCompatActivity(), MessageClient.OnMessageReceivedListe
         countdownTimer = null
         isCountdownActive = false
         binding.tvStatus.text = "Cancelled"
-        Toast.makeText(this, "Timer cancelled", Toast.LENGTH_SHORT).show()
     }
 
     override fun onResume() {
@@ -264,13 +271,13 @@ class RemoteActivity : AppCompatActivity(), MessageClient.OnMessageReceivedListe
 
     private fun formatCommand(command: String): String {
         return when (command) {
-            "open_camera" -> "Opening camera..."
-            "capture" -> "Capturing..."
+            "open_camera" -> "Opening..."
+            "capture" -> "Capture"
             "toggle_flash" -> "Flash..."
             "switch_camera" -> "Switching..."
-            "open_video" -> "Video mode..."
+            "open_video" -> "Video..."
             "zoom_in" -> "Zoom +"
-            "zoom_out" -> "Zoom -"
+            "zoom_out" -> "Zoom \u2212"
             else -> command
         }
     }
@@ -288,7 +295,7 @@ class RemoteActivity : AppCompatActivity(), MessageClient.OnMessageReceivedListe
 
     private fun formatStatus(status: String): String {
         return when (status) {
-            "camera_opened" -> "Camera opened"
+            "camera_opened" -> "Camera ready"
             "captured" -> "Captured!"
             "capture_failed" -> "Capture failed"
             "camera_switched" -> "Switched"
@@ -314,6 +321,57 @@ class RemoteActivity : AppCompatActivity(), MessageClient.OnMessageReceivedListe
                 Log.d(TAG, "Settings updated: haptic=${hapticDurationMs}ms, timer=${timerSeconds}s, vibrateCountdown=$vibrateOnCountdown")
             }
         }
+    }
+
+    /**
+     * Apply Material You dynamic colors to button backgrounds.
+     * Uses the device's wallpaper-derived color palette.
+     */
+    private fun applyDynamicButtonColors() {
+        try {
+            val typedArray = obtainStyledAttributes(intArrayOf(
+                com.google.android.material.R.attr.colorPrimary,
+                com.google.android.material.R.attr.colorSecondary,
+                com.google.android.material.R.attr.colorTertiary,
+                com.google.android.material.R.attr.colorPrimaryContainer,
+                com.google.android.material.R.attr.colorSecondaryContainer,
+                com.google.android.material.R.attr.colorTertiaryContainer
+            ))
+
+            val primary = typedArray.getColor(0, Color.parseColor("#B3E5FC"))
+            val secondary = typedArray.getColor(1, Color.parseColor("#CE93D8"))
+            val tertiary = typedArray.getColor(2, Color.parseColor("#FFCDD2"))
+            val primaryContainer = typedArray.getColor(3, Color.parseColor("#D0BCFF"))
+            val secondaryContainer = typedArray.getColor(4, Color.parseColor("#E0E0E0"))
+            val tertiaryContainer = typedArray.getColor(5, Color.parseColor("#FFF3B0"))
+            typedArray.recycle()
+
+            setButtonColor(binding.btnOpenCamera, primaryContainer)
+            setButtonColor(binding.btnVideo, secondary)
+            setButtonColor(binding.btnFlash, tertiaryContainer)
+            setButtonColor(binding.btnTimer, tertiary)
+            setButtonColor(binding.btnSwitch, secondaryContainer)
+            setButtonColor(binding.btnCapture, Color.WHITE)
+
+            binding.tvStatus.setTextColor(primary)
+
+            Log.d(TAG, "Applied Material You dynamic colors")
+        } catch (e: Exception) {
+            Log.w(TAG, "Failed to apply dynamic colors, using defaults", e)
+        }
+    }
+
+    private fun setButtonColor(button: ImageButton, color: Int) {
+        val oval = GradientDrawable().apply {
+            shape = GradientDrawable.OVAL
+            setColor(color)
+        }
+        val ripple = RippleDrawable(
+            ColorStateList.valueOf(Color.parseColor("#30000000")),
+            oval,
+            null
+        )
+        button.background = ripple
     }
 
     override fun onGenericMotionEvent(event: MotionEvent): Boolean {
