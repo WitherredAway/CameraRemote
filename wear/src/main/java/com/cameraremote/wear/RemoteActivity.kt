@@ -2,6 +2,7 @@ package com.cameraremote.wear
 
 import android.os.Build
 import android.os.Bundle
+import android.os.CountDownTimer
 import android.os.VibrationEffect
 import android.os.Vibrator
 import android.os.VibratorManager
@@ -30,9 +31,12 @@ class RemoteActivity : AppCompatActivity(), MessageClient.OnMessageReceivedListe
     private val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
     private var vibrator: Vibrator? = null
     private var messageClient: MessageClient? = null
+    private var timerSeconds = 3
+    private var countdownTimer: CountDownTimer? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
-        DynamicColors.applyToActivityIfAvailable(this)
+        // Don't apply DynamicColors — it overrides our dark theme with the device's
+        // Material You color (which may be green/teal instead of our intended dark bg)
         super.onCreate(savedInstanceState)
         Log.d(TAG, "onCreate started")
         binding = ActivityRemoteBinding.inflate(layoutInflater)
@@ -67,17 +71,65 @@ class RemoteActivity : AppCompatActivity(), MessageClient.OnMessageReceivedListe
         fun bindButton(button: ImageButton, command: String, label: String) {
             button.setOnClickListener {
                 Log.d(TAG, "Button clicked: $label ($command)")
-                Toast.makeText(this, label, Toast.LENGTH_SHORT).show()
+                vibrate()
                 sendCommand(command)
             }
             Log.d(TAG, "Button bound: $label -> ${button.id}")
         }
 
-        bindButton(binding.btnCapture, "take_photo", "Capture")
-        bindButton(binding.btnTimer, "take_photo_timer", "Timer")
+        // Shutter: just captures in whatever mode camera is in
+        bindButton(binding.btnCapture, "capture", "Capture")
+
+        // Open camera / photo mode
+        bindButton(binding.btnOpenCamera, "open_camera", "Camera")
+
+        // Flash toggle on/off
         bindButton(binding.btnFlash, "toggle_flash", "Flash")
+
+        // Flip / switch camera
         bindButton(binding.btnSwitch, "switch_camera", "Switch")
+
+        // Video mode
         bindButton(binding.btnVideo, "open_video", "Video")
+
+        // Timer: tap to start countdown, long-press to change duration
+        binding.btnTimer.setOnClickListener {
+            Log.d(TAG, "Timer clicked: ${timerSeconds}s")
+            vibrate()
+            startCountdown()
+        }
+        binding.btnTimer.setOnLongClickListener {
+            timerSeconds = when (timerSeconds) {
+                3 -> 5
+                5 -> 10
+                else -> 3
+            }
+            vibrate()
+            binding.tvStatus.text = "Timer: ${timerSeconds}s"
+            Toast.makeText(this, "Timer: ${timerSeconds}s", Toast.LENGTH_SHORT).show()
+            true
+        }
+    }
+
+    private fun startCountdown() {
+        countdownTimer?.cancel()
+        binding.tvStatus.text = "$timerSeconds"
+        countdownTimer = object : CountDownTimer(timerSeconds * 1000L, 1000L) {
+            override fun onTick(millisUntilFinished: Long) {
+                val secondsLeft = (millisUntilFinished / 1000).toInt() + 1
+                runOnUiThread {
+                    binding.tvStatus.text = "$secondsLeft"
+                }
+                vibrate()
+            }
+            override fun onFinish() {
+                runOnUiThread {
+                    binding.tvStatus.text = "Capturing..."
+                }
+                vibrate()
+                sendCommand("capture")
+            }
+        }.start()
     }
 
     override fun onResume() {
@@ -127,7 +179,6 @@ class RemoteActivity : AppCompatActivity(), MessageClient.OnMessageReceivedListe
 
     private fun sendCommand(command: String) {
         Log.d(TAG, "sendCommand: $command")
-        vibrate()
         binding.tvStatus.text = formatCommand(command)
 
         scope.launch {
@@ -161,11 +212,10 @@ class RemoteActivity : AppCompatActivity(), MessageClient.OnMessageReceivedListe
     private fun formatCommand(command: String): String {
         return when (command) {
             "open_camera" -> "Opening camera..."
-            "take_photo" -> "Taking photo..."
-            "take_photo_timer" -> "3s timer..."
-            "toggle_flash" -> "Toggling flash..."
-            "switch_camera" -> "Switching camera..."
-            "open_video" -> "Opening video..."
+            "capture" -> "Capturing..."
+            "toggle_flash" -> "Flash..."
+            "switch_camera" -> "Switching..."
+            "open_video" -> "Video mode..."
             else -> command
         }
     }
@@ -184,24 +234,24 @@ class RemoteActivity : AppCompatActivity(), MessageClient.OnMessageReceivedListe
     private fun formatStatus(status: String): String {
         return when (status) {
             "camera_opened" -> "Camera opened"
-            "photo_taken" -> "Photo taken!"
-            "photo_failed" -> "Photo failed"
-            "timer_started" -> "Timer: 3..."
-            "camera_switched" -> "Camera switched"
-            "switch_not_found" -> "Switch not found"
-            "flash_toggled" -> "Flash toggled"
-            "flash_not_found" -> "Flash not found"
+            "captured" -> "Captured!"
+            "capture_failed" -> "Capture failed"
+            "camera_switched" -> "Switched"
+            "switch_not_found" -> "Switch N/A"
+            "flash_on" -> "Flash ON"
+            "flash_off" -> "Flash OFF"
+            "flash_not_found" -> "Flash N/A"
             "video_camera_opened" -> "Video mode"
             "video_open_failed" -> "Video failed"
             "camera_open_failed" -> "Can't open camera"
-            "service_not_enabled" -> "Enable service on phone!"
+            "service_not_enabled" -> "Enable service!"
             else -> status
         }
     }
 
     private fun vibrate() {
         try {
-            vibrator?.vibrate(VibrationEffect.createOneShot(50, VibrationEffect.DEFAULT_AMPLITUDE))
+            vibrator?.vibrate(VibrationEffect.createOneShot(30, VibrationEffect.DEFAULT_AMPLITUDE))
         } catch (e: Exception) {
             Log.w(TAG, "Vibration failed", e)
         }

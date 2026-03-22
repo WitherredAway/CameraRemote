@@ -1,15 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
-<androidx.wear.widget.BoxInsetLayout
+<FrameLayout
     xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@color/surface">
-
-    <FrameLayout
-        android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        app:boxedEdges="all">
+    android:background="#FF000000">
 
         <!-- Connection status pill at top -->
         <TextView
@@ -17,14 +11,14 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_gravity="top|center_horizontal"
-            android:layout_marginTop="4dp"
+            android:layout_marginTop="8dp"
             android:paddingHorizontal="12dp"
             android:paddingVertical="3dp"
             android:background="@drawable/bg_status_active"
             android:drawablePadding="6dp"
             android:text="Checking..."
             android:textSize="10sp"
-            android:textColor="@color/on_surface"
+            android:textColor="#E6E1E5"
             android:gravity="center" />
 
         <!-- Status text below connection pill -->
@@ -33,32 +27,32 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_gravity="top|center_horizontal"
-            android:layout_marginTop="24dp"
+            android:layout_marginTop="28dp"
             android:text="Ready"
             android:textSize="9sp"
-            android:textColor="@color/outline"
+            android:textColor="#938F99"
             android:gravity="center" />
 
-        <!-- Timer (red) at left middle — 9 o'clock -->
+        <!-- Camera/Photo (light blue) at 9 o'clock — left middle -->
         <ImageButton
-            android:id="@+id/btnTimer"
-            android:layout_width="40dp"
-            android:layout_height="40dp"
+            android:id="@+id/btnOpenCamera"
+            android:layout_width="36dp"
+            android:layout_height="36dp"
             android:layout_gravity="center"
             android:translationX="-52dp"
             android:translationY="0dp"
-            android:background="@drawable/bg_btn_timer"
-            android:src="@drawable/ic_timer"
-            android:tint="@android:color/white"
+            android:background="@drawable/bg_btn_camera"
+            android:src="@drawable/ic_camera"
+            android:tint="#000000"
             android:scaleType="centerInside"
-            android:padding="10dp"
-            android:contentDescription="3s Timer" />
+            android:padding="8dp"
+            android:contentDescription="Open Camera" />
 
-        <!-- Flash (yellow) at bottom-left — 7:30 o'clock -->
+        <!-- Flash (pastel yellow) at ~7:30 o'clock — bottom-left -->
         <ImageButton
             android:id="@+id/btnFlash"
-            android:layout_width="40dp"
-            android:layout_height="40dp"
+            android:layout_width="36dp"
+            android:layout_height="36dp"
             android:layout_gravity="center"
             android:translationX="-37dp"
             android:translationY="37dp"
@@ -66,14 +60,14 @@
             android:src="@drawable/ic_flash"
             android:tint="#000000"
             android:scaleType="centerInside"
-            android:padding="10dp"
+            android:padding="8dp"
             android:contentDescription="Toggle Flash" />
 
-        <!-- Flip (white) at bottom middle — 6 o'clock -->
+        <!-- Flip (grey) at 6 o'clock — bottom middle -->
         <ImageButton
             android:id="@+id/btnSwitch"
-            android:layout_width="40dp"
-            android:layout_height="40dp"
+            android:layout_width="36dp"
+            android:layout_height="36dp"
             android:layout_gravity="center"
             android:translationX="0dp"
             android:translationY="52dp"
@@ -81,14 +75,14 @@
             android:src="@drawable/ic_flip_camera"
             android:tint="#000000"
             android:scaleType="centerInside"
-            android:padding="10dp"
+            android:padding="8dp"
             android:contentDescription="Switch Camera" />
 
-        <!-- Video (white) at bottom-right — 4:30 o'clock -->
+        <!-- Video (pastel purple) at ~4:30 o'clock — bottom-right -->
         <ImageButton
             android:id="@+id/btnVideo"
-            android:layout_width="40dp"
-            android:layout_height="40dp"
+            android:layout_width="36dp"
+            android:layout_height="36dp"
             android:layout_gravity="center"
             android:translationX="37dp"
             android:translationY="37dp"
@@ -96,21 +90,35 @@
             android:src="@drawable/ic_videocam"
             android:tint="#000000"
             android:scaleType="centerInside"
-            android:padding="10dp"
+            android:padding="8dp"
             android:contentDescription="Video Mode" />
+
+        <!-- Timer (pastel red) at 3 o'clock — right middle -->
+        <ImageButton
+            android:id="@+id/btnTimer"
+            android:layout_width="36dp"
+            android:layout_height="36dp"
+            android:layout_gravity="center"
+            android:translationX="52dp"
+            android:translationY="0dp"
+            android:background="@drawable/bg_btn_timer"
+            android:src="@drawable/ic_timer"
+            android:tint="#000000"
+            android:scaleType="centerInside"
+            android:padding="8dp"
+            android:contentDescription="Timer" />
 
         <!-- Shutter (white, large) at center -->
         <ImageButton
             android:id="@+id/btnCapture"
-            android:layout_width="64dp"
-            android:layout_height="64dp"
+            android:layout_width="60dp"
+            android:layout_height="60dp"
             android:layout_gravity="center"
             android:background="@drawable/bg_btn_shutter"
             android:src="@drawable/ic_photo_camera"
             android:tint="#000000"
             android:scaleType="centerInside"
-            android:padding="16dp"
-            android:contentDescription="Take Photo" />
+            android:padding="14dp"
+            android:contentDescription="Capture" />
 
-    </FrameLayout>
-</androidx.wear.widget.BoxInsetLayout>
+</FrameLayout>

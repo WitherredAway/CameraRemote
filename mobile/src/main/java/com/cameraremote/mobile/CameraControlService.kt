@@ -69,15 +69,17 @@ class CameraControlService : AccessibilityService() {
         Log.d(TAG, "CameraControlService destroyed")
     }
 
+    // Track flash state for direct toggling
+    private var flashOn = false
+
     fun handleCommand(command: String) {
         Log.d(TAG, "handleCommand: $command")
         when (command) {
             "open_camera" -> openCamera()
-            "take_photo" -> takePhoto()
+            "capture" -> capture()
             "switch_camera" -> switchCamera()
             "toggle_flash" -> toggleFlash()
             "open_video" -> openVideoCamera()
-            "take_photo_timer" -> takePhotoWithTimer()
             else -> {
                 Log.w(TAG, "Unknown command: $command")
                 sendStatusToWatch("unknown_command")
@@ -121,44 +123,66 @@ class CameraControlService : AccessibilityService() {
         }
     }
 
-    private fun takePhoto() {
-        Log.d(TAG, "takePhoto: attempting to find and click shutter")
-        // Auto-open camera if it isn't already open
+    /**
+     * Capture: if camera app is in foreground, tap the shutter/record button.
+     * If not in a camera app, open camera first then capture.
+     */
+    private fun capture() {
+        Log.d(TAG, "capture: attempting to find and click shutter")
         val root = rootInActiveWindow
         if (root == null) {
-            Log.d(TAG, "takePhoto: no active window, opening camera first")
+            Log.d(TAG, "capture: no active window, opening camera first")
             openCamera()
-            // Wait for camera to open then try again
-            handler.postDelayed({ takePhotoAfterOpen() }, 1500)
+            handler.postDelayed({ captureAfterOpen() }, 1500)
             return
         }
+
+        // Check if we're in a camera app by looking for shutter-like buttons
+        val isCameraApp = isCameraAppInForeground(root)
         root.recycle()
 
-        // Strategy 1: Find and click the shutter button via accessibility tree
-        if (findAndClickButton(shutterDescriptions)) {
-            sendStatusToWatch("photo_taken")
+        if (!isCameraApp) {
+            Log.d(TAG, "capture: not in camera app, opening camera first")
+            openCamera()
+            handler.postDelayed({ captureAfterOpen() }, 1500)
             return
         }
 
-        Log.d(TAG, "takePhoto: shutter not found by description, trying fallback tap")
-        // Strategy 2: Tap the center-bottom of the screen (common shutter location)
-        tapShutterFallback()
+        doCapture()
     }
 
-    private fun takePhotoAfterOpen() {
-        Log.d(TAG, "takePhotoAfterOpen: retrying after camera open")
+    private fun captureAfterOpen() {
+        Log.d(TAG, "captureAfterOpen: retrying after camera open")
+        doCapture()
+    }
+
+    private fun doCapture() {
         if (findAndClickButton(shutterDescriptions)) {
-            sendStatusToWatch("photo_taken")
+            sendStatusToWatch("captured")
             return
         }
+        Log.d(TAG, "doCapture: shutter not found by description, trying fallback tap")
         tapShutterFallback()
     }
 
-    private fun takePhotoWithTimer() {
-        sendStatusToWatch("timer_started")
-        handler.postDelayed({
-            takePhoto()
-        }, 3000)
+    private fun isCameraAppInForeground(root: AccessibilityNodeInfo): Boolean {
+        // Check if any shutter/capture-like button exists in the current window
+        for (desc in shutterDescriptions) {
+            val nodes = root.findAccessibilityNodeInfosByText(desc)
+            if (nodes.isNotEmpty()) {
+                for (node in nodes) node.recycle()
+                return true
+            }
+        }
+        // Also check for video record buttons
+        for (desc in videoDescriptions) {
+            val nodes = root.findAccessibilityNodeInfosByText(desc)
+            if (nodes.isNotEmpty()) {
+                for (node in nodes) node.recycle()
+                return true
+            }
+        }
+        return false
     }
 
     private fun switchCamera() {
@@ -170,8 +194,41 @@ class CameraControlService : AccessibilityService() {
     }
 
     private fun toggleFlash() {
+        // Try to find flash button and click it.
+        // Many camera apps cycle: off -> auto -> on. We want direct on/off.
+        // Strategy: click flash button, then if a menu appears, click "on" or "off"
+        val flashOnDescriptions = listOf("flash on", "on", "flash_on")
+        val flashOffDescriptions = listOf("flash off", "off", "flash_off")
+
+        if (flashOn) {
+            // Try to turn flash off
+            if (findAndClickButton(flashOffDescriptions)) {
+                flashOn = false
+                sendStatusToWatch("flash_off")
+                return
+            }
+        } else {
+            // Try to turn flash on
+            if (findAndClickButton(flashOnDescriptions)) {
+                flashOn = true
+                sendStatusToWatch("flash_on")
+                return
+            }
+        }
+
+        // Fallback: just click the flash button (cycles through modes)
         if (findAndClickButton(flashDescriptions)) {
-            sendStatusToWatch("flash_toggled")
+            flashOn = !flashOn
+            sendStatusToWatch(if (flashOn) "flash_on" else "flash_off")
+
+            // After clicking flash, a submenu might appear — try to click on/off in it
+            handler.postDelayed({
+                if (flashOn) {
+                    findAndClickButton(flashOnDescriptions)
+                } else {
+                    findAndClickButton(flashOffDescriptions)
+                }
+            }, 300)
         } else {
             sendStatusToWatch("flash_not_found")
         }
@@ -284,12 +341,12 @@ class CameraControlService : AccessibilityService() {
         dispatchGesture(gesture, object : GestureResultCallback() {
             override fun onCompleted(gestureDescription: GestureDescription?) {
                 Log.d(TAG, "Tap gesture completed at ($x, $y)")
-                sendStatusToWatch("photo_taken")
+                sendStatusToWatch("captured")
             }
 
             override fun onCancelled(gestureDescription: GestureDescription?) {
                 Log.d(TAG, "Tap gesture cancelled")
-                sendStatusToWatch("photo_failed")
+                sendStatusToWatch("capture_failed")
             }
         }, null)
     }

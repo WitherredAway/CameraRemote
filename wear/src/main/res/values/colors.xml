@@ -16,15 +16,16 @@
     <color name="secondary">#CCC2DC</color>
     <color name="tertiary">#EFB8C8</color>
 
-    <!-- Button accent colors -->
-    <color name="btn_shutter">#FFFFFF</color>
-    <color name="btn_flash">#FFD600</color>
-    <color name="btn_timer">#F44336</color>
-    <color name="btn_switch">#FFFFFF</color>
-    <color name="btn_video">#FFFFFF</color>
+    <!-- Pastel button colors -->
+    <color name="btn_shutter">#F5F5F5</color>
+    <color name="btn_flash">#FFF3B0</color>
+    <color name="btn_timer">#FFCDD2</color>
+    <color name="btn_switch">#E0E0E0</color>
+    <color name="btn_video">#CE93D8</color>
+    <color name="btn_camera">#B3E5FC</color>
 
-    <!-- Ripple for dark icons on white buttons -->
-    <color name="ripple_dark">#40000000</color>
+    <!-- Ripple colors -->
+    <color name="ripple_dark">#30000000</color>
 
     <!-- Status colors -->
     <color name="status_green">#4CAF50</color>
@@ -33,5 +34,5 @@
     <color name="status_bg_inactive">#1AF44336</color>
 
     <!-- Ripple -->
-    <color name="ripple_white">#40FFFFFF</color>
+    <color name="ripple_white">#30FFFFFF</color>
 </resources>
