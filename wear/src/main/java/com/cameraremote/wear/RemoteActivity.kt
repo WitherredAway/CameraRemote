@@ -7,9 +7,14 @@ import android.os.VibrationEffect
 import android.os.Vibrator
 import android.os.VibratorManager
 import android.util.Log
+import android.view.MotionEvent
+import android.view.ViewConfiguration
 import android.widget.ImageButton
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.view.InputDeviceCompat
+import androidx.core.view.MotionEventCompat
+import androidx.core.view.ViewConfigurationCompat
 import com.cameraremote.wear.databinding.ActivityRemoteBinding
 import com.google.android.gms.wearable.DataClient
 import com.google.android.gms.wearable.DataEvent
@@ -40,6 +45,7 @@ class RemoteActivity : AppCompatActivity(), MessageClient.OnMessageReceivedListe
     private var messageClient: MessageClient? = null
     private var timerSeconds = DEFAULT_TIMER_SECONDS
     private var countdownTimer: CountDownTimer? = null
+    private var isCountdownActive = false
     private var hapticDurationMs = DEFAULT_HAPTIC_DURATION_MS.toLong()
     private var vibrateOnCountdown = true
 
@@ -122,11 +128,16 @@ class RemoteActivity : AppCompatActivity(), MessageClient.OnMessageReceivedListe
         // Video mode
         bindButton(binding.btnVideo, "open_video", "Video")
 
-        // Timer: tap to start countdown, long-press to change duration
+        // Timer: tap to start/cancel countdown, long-press to change duration
         binding.btnTimer.setOnClickListener {
-            Log.d(TAG, "Timer clicked: ${timerSeconds}s")
             vibrate()
-            startCountdown()
+            if (isCountdownActive) {
+                Log.d(TAG, "Timer clicked: cancelling countdown")
+                cancelCountdown()
+            } else {
+                Log.d(TAG, "Timer clicked: starting ${timerSeconds}s countdown")
+                startCountdown()
+            }
         }
         binding.btnTimer.setOnLongClickListener {
             timerSeconds = when (timerSeconds) {
@@ -143,6 +154,7 @@ class RemoteActivity : AppCompatActivity(), MessageClient.OnMessageReceivedListe
 
     private fun startCountdown() {
         countdownTimer?.cancel()
+        isCountdownActive = true
         binding.tvStatus.text = "$timerSeconds"
         countdownTimer = object : CountDownTimer(timerSeconds * 1000L, 1000L) {
             override fun onTick(millisUntilFinished: Long) {
@@ -153,6 +165,7 @@ class RemoteActivity : AppCompatActivity(), MessageClient.OnMessageReceivedListe
                 if (vibrateOnCountdown) vibrate()
             }
             override fun onFinish() {
+                isCountdownActive = false
                 runOnUiThread {
                     binding.tvStatus.text = "Capturing..."
                 }
@@ -160,6 +173,14 @@ class RemoteActivity : AppCompatActivity(), MessageClient.OnMessageReceivedListe
                 sendCommand("capture")
             }
         }.start()
+    }
+
+    private fun cancelCountdown() {
+        countdownTimer?.cancel()
+        countdownTimer = null
+        isCountdownActive = false
+        binding.tvStatus.text = "Cancelled"
+        Toast.makeText(this, "Timer cancelled", Toast.LENGTH_SHORT).show()
     }
 
     override fun onResume() {
@@ -248,6 +269,8 @@ class RemoteActivity : AppCompatActivity(), MessageClient.OnMessageReceivedListe
             "toggle_flash" -> "Flash..."
             "switch_camera" -> "Switching..."
             "open_video" -> "Video mode..."
+            "zoom_in" -> "Zoom +"
+            "zoom_out" -> "Zoom -"
             else -> command
         }
     }
@@ -291,6 +314,26 @@ class RemoteActivity : AppCompatActivity(), MessageClient.OnMessageReceivedListe
                 Log.d(TAG, "Settings updated: haptic=${hapticDurationMs}ms, timer=${timerSeconds}s, vibrateCountdown=$vibrateOnCountdown")
             }
         }
+    }
+
+    override fun onGenericMotionEvent(event: MotionEvent): Boolean {
+        if (event.action == MotionEvent.ACTION_SCROLL &&
+            event.isFromSource(InputDeviceCompat.SOURCE_ROTARY_ENCODER)) {
+            val delta = -event.getAxisValue(MotionEventCompat.AXIS_SCROLL) *
+                ViewConfigurationCompat.getScaledVerticalScrollFactor(
+                    ViewConfiguration.get(this), this)
+            // delta > 0 = clockwise = zoom in, delta < 0 = counter-clockwise = zoom out
+            if (delta > 0) {
+                Log.d(TAG, "Bezel: zoom in")
+                sendCommand("zoom_in")
+            } else {
+                Log.d(TAG, "Bezel: zoom out")
+                sendCommand("zoom_out")
+            }
+            vibrate()
+            return true
+        }
+        return super.onGenericMotionEvent(event)
     }
 
     private fun vibrate() {

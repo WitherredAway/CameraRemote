@@ -86,6 +86,8 @@ class CameraControlService : AccessibilityService() {
             "switch_camera" -> switchCamera()
             "toggle_flash" -> toggleFlash()
             "open_video" -> openVideoCamera()
+            "zoom_in" -> zoom(zoomIn = true)
+            "zoom_out" -> zoom(zoomIn = false)
             else -> {
                 Log.w(TAG, "Unknown command: $command")
                 sendStatusToWatch("unknown_command")
@@ -238,6 +240,68 @@ class CameraControlService : AccessibilityService() {
         }
     }
 
+    /**
+     * Zoom in or out by performing a pinch gesture on screen.
+     * Uses two-finger spread (zoom in) or pinch (zoom out).
+     */
+    private fun zoom(zoomIn: Boolean) {
+        val wm = getSystemService(Context.WINDOW_SERVICE) as WindowManager
+        val metrics = DisplayMetrics()
+        @Suppress("DEPRECATION")
+        wm.defaultDisplay.getMetrics(metrics)
+
+        val centerX = metrics.widthPixels / 2f
+        val centerY = metrics.heightPixels / 2f
+        val offset = metrics.widthPixels / 8f  // How far fingers move
+
+        val duration = 200L
+        if (zoomIn) {
+            // Spread: fingers move outward from center
+            val path1 = Path().apply {
+                moveTo(centerX - offset / 2, centerY)
+                lineTo(centerX - offset, centerY)
+            }
+            val path2 = Path().apply {
+                moveTo(centerX + offset / 2, centerY)
+                lineTo(centerX + offset, centerY)
+            }
+            val gesture = GestureDescription.Builder()
+                .addStroke(GestureDescription.StrokeDescription(path1, 0, duration))
+                .addStroke(GestureDescription.StrokeDescription(path2, 0, duration))
+                .build()
+            dispatchGesture(gesture, object : GestureResultCallback() {
+                override fun onCompleted(gestureDescription: GestureDescription?) {
+                    Log.d(TAG, "Zoom in gesture completed")
+                }
+                override fun onCancelled(gestureDescription: GestureDescription?) {
+                    Log.w(TAG, "Zoom in gesture cancelled")
+                }
+            }, null)
+        } else {
+            // Pinch: fingers move inward toward center
+            val path1 = Path().apply {
+                moveTo(centerX - offset, centerY)
+                lineTo(centerX - offset / 2, centerY)
+            }
+            val path2 = Path().apply {
+                moveTo(centerX + offset, centerY)
+                lineTo(centerX + offset / 2, centerY)
+            }
+            val gesture = GestureDescription.Builder()
+                .addStroke(GestureDescription.StrokeDescription(path1, 0, duration))
+                .addStroke(GestureDescription.StrokeDescription(path2, 0, duration))
+                .build()
+            dispatchGesture(gesture, object : GestureResultCallback() {
+                override fun onCompleted(gestureDescription: GestureDescription?) {
+                    Log.d(TAG, "Zoom out gesture completed")
+                }
+                override fun onCancelled(gestureDescription: GestureDescription?) {
+                    Log.w(TAG, "Zoom out gesture cancelled")
+                }
+            }, null)
+        }
+    }
+
     private fun toggleFlash() {
         // Samsung camera (and many others) use icon-only flash buttons that don't
         // expose useful text to accessibility. Strategy:
@@ -305,14 +369,12 @@ class CameraControlService : AccessibilityService() {
 
     /**
      * After the flash submenu opens, find and click the on or off option.
-     * Uses multiple strategies:
-     * 1. Exact match: contentDescription contains "flash on"/"flash off"
-     * 2. Broad match: contentDescription contains just "on"/"off" for top-area nodes
-     * 3. Position-based: find flash-related nodes in a horizontal row, pick leftmost (off) or rightmost (on)
+     * Searches ALL nodes (not just clickable) since Samsung's submenu items
+     * may not report as clickable. Falls back to gesture tap on node bounds.
      */
     private fun selectFlashSubmenuOption() {
-        // Dump nodes again so we can see the submenu in logcat
-        dumpVisibleNodes()
+        // Dump ALL nodes for debugging (not just clickable)
+        dumpAllNodes()
 
         val rootNode = rootInActiveWindow ?: run {
             flashOn = !flashOn
@@ -320,105 +382,135 @@ class CameraControlService : AccessibilityService() {
             return
         }
 
-        val clickable = findClickableNodes(rootNode)
+        val allNodes = findAllNodes(rootNode)
         val wantOn = !flashOn  // If flash is currently off, we want to turn it on
+        val screenHeight = resources.displayMetrics.heightPixels
 
-        // Strategy 1: Look for nodes with "flash on"/"flash off" in description
-        for (node in clickable) {
+        data class FlashNode(val node: AccessibilityNodeInfo, val desc: String, val bounds: android.graphics.Rect)
+        val flashNodes = mutableListOf<FlashNode>()
+
+        // Collect ALL nodes in the top portion of screen that look like flash options
+        for (node in allNodes) {
             val contentDesc = node.contentDescription?.toString()?.lowercase() ?: ""
-            val targetPhrase = if (wantOn) "flash on" else "flash off"
-            if (contentDesc.contains(targetPhrase) && !contentDesc.contains("motion") && node.isVisibleToUser) {
-                if (node.performAction(AccessibilityNodeInfo.ACTION_CLICK)) {
+            val text = node.text?.toString()?.lowercase() ?: ""
+            val combined = "$contentDesc $text"
+            if (combined.contains("motion")) continue
+            if (!node.isVisibleToUser) continue
+
+            val bounds = android.graphics.Rect()
+            node.getBoundsInScreen(bounds)
+            // Only consider nodes in the top 30% of screen (flash submenu area)
+            if (bounds.top >= screenHeight * 3 / 10) continue
+            // Skip very small or zero-size nodes
+            if (bounds.width() < 10 || bounds.height() < 10) continue
+
+            val isFlashOption = combined.contains("flash")
+                    || contentDesc == "off" || contentDesc == "on" || contentDesc == "auto"
+                    || combined.contains("꺼짐") || combined.contains("켜짐")  // Korean
+
+            if (isFlashOption) {
+                flashNodes.add(FlashNode(node, contentDesc, bounds))
+                Log.d(TAG, "Flash candidate: desc='$contentDesc' text='$text' bounds=$bounds clickable=${node.isClickable}")
+            }
+        }
+
+        Log.d(TAG, "Flash submenu: found ${flashNodes.size} candidates, wantOn=$wantOn")
+
+        // Strategy 1: Exact match — look for "flash on"/"flash off"
+        val targetPhrase = if (wantOn) "flash on" else "flash off"
+        for (fn in flashNodes) {
+            if (fn.desc.contains(targetPhrase)) {
+                Log.d(TAG, "Flash submenu (exact match): trying '${fn.desc}'")
+                if (tryClickOrTap(fn.node, fn.bounds)) {
                     flashOn = wantOn
-                    Log.d(TAG, "Flash submenu (exact): clicked '$contentDesc'")
                     sendStatusToWatch(if (flashOn) "flash_on" else "flash_off")
-                    recycleNodes(clickable)
+                    recycleNodes(allNodes)
                     rootNode.recycle()
                     return
                 }
             }
         }
 
-        // Strategy 2: Find flash-related nodes in a horizontal row near the top.
-        // Collect all nodes whose description contains flash-related keywords,
-        // then sort by X position to determine off (left) / auto (middle) / on (right).
-        data class FlashNode(val node: AccessibilityNodeInfo, val desc: String, val left: Int)
-        val flashNodes = mutableListOf<FlashNode>()
-        val screenHeight = resources.displayMetrics.heightPixels
-
-        for (node in clickable) {
-            val contentDesc = node.contentDescription?.toString()?.lowercase() ?: ""
-            if (contentDesc.contains("motion") || !node.isVisibleToUser) continue
-
-            // Match nodes that look like flash options: contain "flash", "off", "on", or "auto"
-            val isFlashOption = contentDesc.contains("flash")
-                    || contentDesc == "off" || contentDesc == "on" || contentDesc == "auto"
-                    || contentDesc.contains("꺼짐") || contentDesc.contains("켜짐")  // Korean
-
-            if (isFlashOption) {
-                val bounds = android.graphics.Rect()
-                node.getBoundsInScreen(bounds)
-                // Only consider nodes in the top 25% of screen (flash submenu area)
-                if (bounds.top < screenHeight / 4) {
-                    flashNodes.add(FlashNode(node, contentDesc, bounds.left))
-                    Log.d(TAG, "Flash candidate: '$contentDesc' bounds=$bounds")
-                }
-            }
-        }
-
+        // Strategy 2: Position-based — sort by X, leftmost=off, rightmost=on
         if (flashNodes.size >= 2) {
-            // Sort by X position: leftmost = off, rightmost = on
-            flashNodes.sortBy { it.left }
-            val target = if (wantOn) flashNodes.last() else flashNodes.first()
+            val sorted = flashNodes.sortedBy { it.bounds.left }
+            val target = if (wantOn) sorted.last() else sorted.first()
             Log.d(TAG, "Flash submenu (position): picking '${target.desc}' (want ${if (wantOn) "on" else "off"})")
-            if (target.node.performAction(AccessibilityNodeInfo.ACTION_CLICK)) {
+            if (tryClickOrTap(target.node, target.bounds)) {
                 flashOn = wantOn
                 sendStatusToWatch(if (flashOn) "flash_on" else "flash_off")
-                recycleNodes(clickable)
+                recycleNodes(allNodes)
                 rootNode.recycle()
                 return
             }
-            // Try clicking parent if node itself didn't respond
-            val parent = target.node.parent
-            if (parent != null && parent.isClickable) {
-                if (parent.performAction(AccessibilityNodeInfo.ACTION_CLICK)) {
-                    flashOn = wantOn
-                    Log.d(TAG, "Flash submenu (position/parent): clicked parent of '${target.desc}'")
-                    sendStatusToWatch(if (flashOn) "flash_on" else "flash_off")
-                    parent.recycle()
-                    recycleNodes(clickable)
-                    rootNode.recycle()
-                    return
-                }
-                parent.recycle()
-            }
         }
 
-        // Strategy 3: Try tapping the node at the position where on/off should be.
-        // Use the bounds of the flash nodes we found to tap using a gesture.
-        if (flashNodes.size >= 2) {
-            flashNodes.sortBy { it.left }
-            val target = if (wantOn) flashNodes.last() else flashNodes.first()
-            val bounds = android.graphics.Rect()
-            target.node.getBoundsInScreen(bounds)
-            val x = bounds.centerX().toFloat()
-            val y = bounds.centerY().toFloat()
-            Log.d(TAG, "Flash submenu (gesture at node bounds): tapping ($x, $y) for '${target.desc}'")
-            tapAtPosition(x, y) {
-                flashOn = wantOn
-                sendStatusToWatch(if (flashOn) "flash_on" else "flash_off")
+        // Strategy 3: If we found exactly 1 node or 0, try all top-area clickable/tappable nodes
+        // that aren't the main flash button itself (they should be new submenu items)
+        if (flashNodes.isEmpty()) {
+            // No flash-keyword nodes found — try tapping ALL small nodes near the top
+            // that appeared after the submenu opened (likely icon-only with no description)
+            val topNodes = mutableListOf<FlashNode>()
+            for (node in allNodes) {
+                if (!node.isVisibleToUser) continue
+                val bounds = android.graphics.Rect()
+                node.getBoundsInScreen(bounds)
+                if (bounds.top >= screenHeight * 3 / 10) continue
+                if (bounds.width() < 10 || bounds.height() < 10) continue
+                // Look for small icon-sized nodes (likely submenu buttons)
+                if (bounds.width() in 10..200 && bounds.height() in 10..200) {
+                    val desc = node.contentDescription?.toString()?.lowercase() ?: ""
+                    if (!desc.contains("motion")) {
+                        topNodes.add(FlashNode(node, desc, bounds))
+                    }
+                }
             }
-            recycleNodes(clickable)
-            rootNode.recycle()
-            return
+            Log.d(TAG, "Flash submenu: no keyword matches, found ${topNodes.size} top-area icon nodes")
+            if (topNodes.size >= 2) {
+                val sorted = topNodes.sortedBy { it.bounds.left }
+                val target = if (wantOn) sorted.last() else sorted.first()
+                Log.d(TAG, "Flash submenu (icon position): tapping '${target.desc}' at ${target.bounds}")
+                tapAtPosition(target.bounds.centerX().toFloat(), target.bounds.centerY().toFloat()) {
+                    flashOn = wantOn
+                    sendStatusToWatch(if (flashOn) "flash_on" else "flash_off")
+                }
+                recycleNodes(allNodes)
+                rootNode.recycle()
+                return
+            }
         }
 
         // No submenu found, assume the first click toggled it
         flashOn = !flashOn
         Log.d(TAG, "No flash submenu options found, assuming toggle -> flash ${if (flashOn) "on" else "off"}")
         sendStatusToWatch(if (flashOn) "flash_on" else "flash_off")
-        recycleNodes(clickable)
+        recycleNodes(allNodes)
         rootNode.recycle()
+    }
+
+    /**
+     * Try to activate a node: first by accessibility click, then parent click, then gesture tap.
+     */
+    private fun tryClickOrTap(node: AccessibilityNodeInfo, bounds: android.graphics.Rect): Boolean {
+        // Try direct click
+        if (node.isClickable && node.performAction(AccessibilityNodeInfo.ACTION_CLICK)) {
+            Log.d(TAG, "tryClickOrTap: direct click succeeded")
+            return true
+        }
+        // Try parent click
+        val parent = node.parent
+        if (parent != null) {
+            if (parent.isClickable && parent.performAction(AccessibilityNodeInfo.ACTION_CLICK)) {
+                Log.d(TAG, "tryClickOrTap: parent click succeeded")
+                parent.recycle()
+                return true
+            }
+            parent.recycle()
+        }
+        // Gesture tap at node center
+        Log.d(TAG, "tryClickOrTap: gesture tap at (${bounds.centerX()}, ${bounds.centerY()})")
+        tapAtPosition(bounds.centerX().toFloat(), bounds.centerY().toFloat()) {}
+        return true  // Assume gesture will work
     }
 
     /**
@@ -462,6 +554,32 @@ class CameraControlService : AccessibilityService() {
         }
         Log.d(TAG, "=== END NODES ===")
         recycleNodes(clickable)
+        rootNode.recycle()
+    }
+
+    /**
+     * Dump ALL nodes (clickable or not) to logcat for debugging flash submenu.
+     */
+    private fun dumpAllNodes() {
+        val rootNode = rootInActiveWindow ?: run {
+            Log.d(TAG, "dumpAllNodes: no active window")
+            return
+        }
+        val all = findAllNodes(rootNode)
+        val screenHeight = resources.displayMetrics.heightPixels
+        Log.d(TAG, "=== ALL NODES IN TOP 30% (screen height=$screenHeight) ===")
+        for ((i, node) in all.withIndex()) {
+            val bounds = android.graphics.Rect()
+            node.getBoundsInScreen(bounds)
+            if (bounds.top < screenHeight * 3 / 10) {
+                val contentDesc = node.contentDescription?.toString() ?: "(none)"
+                val text = node.text?.toString() ?: "(none)"
+                val className = node.className?.toString() ?: "(none)"
+                Log.d(TAG, "  [$i] class=$className desc='$contentDesc' text='$text' bounds=$bounds clickable=${node.isClickable} visible=${node.isVisibleToUser}")
+            }
+        }
+        Log.d(TAG, "=== END ALL NODES ===")
+        recycleNodes(all)
         rootNode.recycle()
     }
 
@@ -536,6 +654,21 @@ class CameraControlService : AccessibilityService() {
         for (i in 0 until node.childCount) {
             val child = node.getChild(i) ?: continue
             result.addAll(findClickableNodes(child))
+            child.recycle()
+        }
+        return result
+    }
+
+    /**
+     * Find ALL nodes in the accessibility tree (clickable or not).
+     * Samsung camera submenu items may not report as clickable.
+     */
+    private fun findAllNodes(node: AccessibilityNodeInfo): List<AccessibilityNodeInfo> {
+        val result = mutableListOf<AccessibilityNodeInfo>()
+        result.add(AccessibilityNodeInfo.obtain(node))
+        for (i in 0 until node.childCount) {
+            val child = node.getChild(i) ?: continue
+            result.addAll(findAllNodes(child))
             child.recycle()
         }
         return result
