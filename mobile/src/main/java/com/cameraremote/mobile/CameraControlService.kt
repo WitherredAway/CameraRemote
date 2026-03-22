@@ -37,7 +37,7 @@ class CameraControlService : AccessibilityService() {
     )
     private val recordDescriptions = listOf(
         "record", "start recording", "record video", "stop recording",
-        "recording", "rec"
+        "stop", "recording", "rec"
     )
     private val switchCameraDescriptions = listOf(
         "switch camera", "flip camera", "toggle camera", "front camera",
@@ -173,13 +173,14 @@ class CameraControlService : AccessibilityService() {
     }
 
     private fun doCapture() {
-        // Try photo shutter descriptions first
-        if (findAndClickButton(shutterDescriptions)) {
+        // Try video record/stop button first — this ensures that pressing
+        // shutter while recording stops the video instead of taking a photo
+        if (findAndClickButton(recordDescriptions)) {
             sendStatusToWatch("captured")
             return
         }
-        // Try video record button descriptions (for video mode)
-        if (findAndClickButton(recordDescriptions)) {
+        // Then try photo shutter descriptions
+        if (findAndClickButton(shutterDescriptions)) {
             sendStatusToWatch("captured")
             return
         }
