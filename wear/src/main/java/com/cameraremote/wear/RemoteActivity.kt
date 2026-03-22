@@ -344,10 +344,11 @@ class RemoteActivity : AppCompatActivity(), MessageClient.OnMessageReceivedListe
             bezelRotationAccumulator += delta
 
             val now = System.currentTimeMillis()
-            val threshold = 1.0f
-            val debounceMs = 150L
+            // Send zoom on every detent click but debounce rapid events
+            // so the phone gesture has time to complete
+            val debounceMs = 300L
 
-            if (Math.abs(bezelRotationAccumulator) >= threshold && (now - lastBezelZoomTime) >= debounceMs) {
+            if (bezelRotationAccumulator != 0f && (now - lastBezelZoomTime) >= debounceMs) {
                 if (bezelRotationAccumulator > 0) {
                     Log.d(TAG, "Bezel: zoom in (accumulated=${bezelRotationAccumulator})")
                     sendCommand("zoom_in")
