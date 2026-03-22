@@ -369,12 +369,13 @@ class CameraControlService : AccessibilityService() {
 
     /**
      * After the flash submenu opens, find and click the on or off option.
-     * Searches ALL nodes (not just clickable) since Samsung's submenu items
-     * may not report as clickable. Falls back to gesture tap on node bounds.
+     * Samsung camera uses text field like BACK_FLASH_OFF, BACK_FLASH_ON,
+     * FRONT_FLASH_OFF, FRONT_FLASH_ON to identify flash submenu items.
+     * All items share desc='Flash', so we must check the text field.
      */
     private fun selectFlashSubmenuOption() {
-        // Dump ALL nodes for debugging (not just clickable)
-        dumpAllNodes()
+        // Dump nodes for debugging
+        dumpVisibleNodes()
 
         val rootNode = rootInActiveWindow ?: run {
             flashOn = !flashOn
@@ -386,42 +387,18 @@ class CameraControlService : AccessibilityService() {
         val wantOn = !flashOn  // If flash is currently off, we want to turn it on
         val screenHeight = resources.displayMetrics.heightPixels
 
-        data class FlashNode(val node: AccessibilityNodeInfo, val desc: String, val bounds: android.graphics.Rect)
-        val flashNodes = mutableListOf<FlashNode>()
+        data class FlashNode(val node: AccessibilityNodeInfo, val desc: String, val text: String, val bounds: android.graphics.Rect)
 
-        // Collect ALL nodes in the top portion of screen that look like flash options
+        // Strategy 1 (Samsung-specific): Match on text field containing FLASH_OFF / FLASH_ON
+        // Samsung camera sets text like "BACK_FLASH_OFF", "BACK_FLASH_ON", "FRONT_FLASH_OFF", etc.
+        val targetText = if (wantOn) "FLASH_ON" else "FLASH_OFF"
         for (node in allNodes) {
-            val contentDesc = node.contentDescription?.toString()?.lowercase() ?: ""
-            val text = node.text?.toString()?.lowercase() ?: ""
-            val combined = "$contentDesc $text"
-            if (combined.contains("motion")) continue
-            if (!node.isVisibleToUser) continue
-
-            val bounds = android.graphics.Rect()
-            node.getBoundsInScreen(bounds)
-            // Only consider nodes in the top 30% of screen (flash submenu area)
-            if (bounds.top >= screenHeight * 3 / 10) continue
-            // Skip very small or zero-size nodes
-            if (bounds.width() < 10 || bounds.height() < 10) continue
-
-            val isFlashOption = combined.contains("flash")
-                    || contentDesc == "off" || contentDesc == "on" || contentDesc == "auto"
-                    || combined.contains("꺼짐") || combined.contains("켜짐")  // Korean
-
-            if (isFlashOption) {
-                flashNodes.add(FlashNode(node, contentDesc, bounds))
-                Log.d(TAG, "Flash candidate: desc='$contentDesc' text='$text' bounds=$bounds clickable=${node.isClickable}")
-            }
-        }
-
-        Log.d(TAG, "Flash submenu: found ${flashNodes.size} candidates, wantOn=$wantOn")
-
-        // Strategy 1: Exact match — look for "flash on"/"flash off"
-        val targetPhrase = if (wantOn) "flash on" else "flash off"
-        for (fn in flashNodes) {
-            if (fn.desc.contains(targetPhrase)) {
-                Log.d(TAG, "Flash submenu (exact match): trying '${fn.desc}'")
-                if (tryClickOrTap(fn.node, fn.bounds)) {
+            val text = node.text?.toString() ?: ""
+            if (text.contains(targetText)) {
+                val bounds = android.graphics.Rect()
+                node.getBoundsInScreen(bounds)
+                Log.d(TAG, "Flash submenu (text match): found '$text' at $bounds, trying click/tap")
+                if (tryClickOrTap(node, bounds)) {
                     flashOn = wantOn
                     sendStatusToWatch(if (flashOn) "flash_on" else "flash_off")
                     recycleNodes(allNodes)
@@ -431,49 +408,59 @@ class CameraControlService : AccessibilityService() {
             }
         }
 
-        // Strategy 2: Position-based — sort by X, leftmost=off, rightmost=on
-        if (flashNodes.size >= 2) {
-            val sorted = flashNodes.sortedBy { it.bounds.left }
-            val target = if (wantOn) sorted.last() else sorted.first()
-            Log.d(TAG, "Flash submenu (position): picking '${target.desc}' (want ${if (wantOn) "on" else "off"})")
-            if (tryClickOrTap(target.node, target.bounds)) {
-                flashOn = wantOn
-                sendStatusToWatch(if (flashOn) "flash_on" else "flash_off")
-                recycleNodes(allNodes)
-                rootNode.recycle()
-                return
+        // Strategy 2: Exact match on contentDescription containing "flash on"/"flash off"
+        val targetPhrase = if (wantOn) "flash on" else "flash off"
+        for (node in allNodes) {
+            val contentDesc = node.contentDescription?.toString()?.lowercase() ?: ""
+            if (contentDesc.contains(targetPhrase) && !contentDesc.contains("motion") && node.isVisibleToUser) {
+                val bounds = android.graphics.Rect()
+                node.getBoundsInScreen(bounds)
+                Log.d(TAG, "Flash submenu (desc match): found '$contentDesc' at $bounds")
+                if (tryClickOrTap(node, bounds)) {
+                    flashOn = wantOn
+                    sendStatusToWatch(if (flashOn) "flash_on" else "flash_off")
+                    recycleNodes(allNodes)
+                    rootNode.recycle()
+                    return
+                }
             }
         }
 
-        // Strategy 3: If we found exactly 1 node or 0, try all top-area clickable/tappable nodes
-        // that aren't the main flash button itself (they should be new submenu items)
-        if (flashNodes.isEmpty()) {
-            // No flash-keyword nodes found — try tapping ALL small nodes near the top
-            // that appeared after the submenu opened (likely icon-only with no description)
-            val topNodes = mutableListOf<FlashNode>()
-            for (node in allNodes) {
-                if (!node.isVisibleToUser) continue
-                val bounds = android.graphics.Rect()
-                node.getBoundsInScreen(bounds)
-                if (bounds.top >= screenHeight * 3 / 10) continue
-                if (bounds.width() < 10 || bounds.height() < 10) continue
-                // Look for small icon-sized nodes (likely submenu buttons)
-                if (bounds.width() in 10..200 && bounds.height() in 10..200) {
-                    val desc = node.contentDescription?.toString()?.lowercase() ?: ""
-                    if (!desc.contains("motion")) {
-                        topNodes.add(FlashNode(node, desc, bounds))
-                    }
-                }
+        // Strategy 3: Position-based — collect flash submenu nodes in top area, sort by X
+        val flashNodes = mutableListOf<FlashNode>()
+        for (node in allNodes) {
+            val contentDesc = node.contentDescription?.toString()?.lowercase() ?: ""
+            val text = node.text?.toString()?.lowercase() ?: ""
+            if (contentDesc.contains("motion") || text.contains("motion")) continue
+            if (!node.isVisibleToUser) continue
+
+            val bounds = android.graphics.Rect()
+            node.getBoundsInScreen(bounds)
+            // Submenu appears below the main toolbar — look for nodes in top 30%
+            if (bounds.top >= screenHeight * 3 / 10) continue
+            if (bounds.width() < 10 || bounds.height() < 10) continue
+
+            // Must contain "flash" in desc or text, or be a standalone on/off/auto
+            val isFlashOption = contentDesc.contains("flash") || text.contains("flash")
+                    || contentDesc == "off" || contentDesc == "on" || contentDesc == "auto"
+            if (isFlashOption) {
+                flashNodes.add(FlashNode(node, contentDesc, text, bounds))
+                Log.d(TAG, "Flash candidate: desc='$contentDesc' text='$text' bounds=$bounds")
             }
-            Log.d(TAG, "Flash submenu: no keyword matches, found ${topNodes.size} top-area icon nodes")
-            if (topNodes.size >= 2) {
-                val sorted = topNodes.sortedBy { it.bounds.left }
-                val target = if (wantOn) sorted.last() else sorted.first()
-                Log.d(TAG, "Flash submenu (icon position): tapping '${target.desc}' at ${target.bounds}")
-                tapAtPosition(target.bounds.centerX().toFloat(), target.bounds.centerY().toFloat()) {
-                    flashOn = wantOn
-                    sendStatusToWatch(if (flashOn) "flash_on" else "flash_off")
-                }
+        }
+
+        // Filter out the main flash button (it's in the top toolbar row, y < 200 typically)
+        // Submenu items appear below the main toolbar
+        val submenuNodes = flashNodes.filter { it.bounds.top > 150 }
+        val candidates = if (submenuNodes.size >= 2) submenuNodes else flashNodes
+
+        if (candidates.size >= 2) {
+            val sorted = candidates.sortedBy { it.bounds.left }
+            val target = if (wantOn) sorted.last() else sorted.first()
+            Log.d(TAG, "Flash submenu (position): picking '${target.desc}' text='${target.text}' (want ${if (wantOn) "on" else "off"})")
+            if (tryClickOrTap(target.node, target.bounds)) {
+                flashOn = wantOn
+                sendStatusToWatch(if (flashOn) "flash_on" else "flash_off")
                 recycleNodes(allNodes)
                 rootNode.recycle()
                 return
