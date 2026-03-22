@@ -14,7 +14,18 @@ class WearMessageListenerService : WearableListenerService() {
         const val TAG = "WearMessageListener"
     }
 
+    override fun onCreate() {
+        super.onCreate()
+        Log.d(TAG, "WearMessageListenerService created")
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        Log.d(TAG, "WearMessageListenerService destroyed")
+    }
+
     override fun onMessageReceived(messageEvent: MessageEvent) {
+        Log.d(TAG, "onMessageReceived: path=${messageEvent.path}, dataSize=${messageEvent.data.size}")
         if (messageEvent.path == "/camera_remote") {
             val command = String(messageEvent.data)
             Log.d(TAG, "Received command from watch: $command")
