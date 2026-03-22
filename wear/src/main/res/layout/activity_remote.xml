@@ -4,7 +4,7 @@
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="#FF000000">
+    android:background="@android:color/black">
 
         <!-- Connection status pill at top -->
         <TextView
@@ -14,12 +14,14 @@
             android:layout_marginTop="8dp"
             android:background="@drawable/bg_status_active"
             android:drawablePadding="6dp"
+            android:fontFamily="sans-serif-medium"
             android:gravity="center"
+            android:letterSpacing="0.04"
             android:paddingHorizontal="12dp"
-            android:paddingVertical="3dp"
+            android:paddingVertical="4dp"
             android:text="Checking..."
-            android:textColor="#E6E1E5"
-            android:textSize="10sp"
+            android:textColor="?colorOnSurface"
+            android:textSize="11sp"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintTop_toTopOf="parent" />
@@ -31,10 +33,12 @@
             android:layout_width="150dp"
             android:layout_height="55dp"
             android:layout_marginTop="28dp"
+            android:fontFamily="sans-serif-light"
             android:gravity="center"
+            android:letterSpacing="0.05"
             android:text="Ready"
-            android:textColor="#938F99"
-            android:textSize="20sp"
+            android:textColor="?colorOnSurfaceVariant"
+            android:textSize="22sp"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintTop_toTopOf="parent" />
