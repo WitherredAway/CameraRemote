@@ -321,6 +321,14 @@ class CameraControlService : AccessibilityService() {
     }
 
     private fun doCapture() {
+        // If currently recording video, stop the recording first
+        if (isRecording) {
+            if (findAndClickButton(recordDescriptions)) {
+                isRecording = false
+                sendStatusToWatch("recording_stopped")
+                return
+            }
+        }
         // Try photo shutter buttons FIRST — camera apps may have "record"
         // nodes even in photo mode, so we must prioritize shutter
         if (findAndClickButton(shutterDescriptions)) {
@@ -329,12 +337,8 @@ class CameraControlService : AccessibilityService() {
         }
         // Then try record/stop button (for video mode or stopping recording)
         if (findAndClickButton(recordDescriptions)) {
-            isRecording = !isRecording
-            if (isRecording) {
-                sendStatusToWatch("recording_started")
-            } else {
-                sendStatusToWatch("recording_stopped")
-            }
+            isRecording = true
+            sendStatusToWatch("recording_started")
             return
         }
         // Fallback: tap the shutter/record button position on screen
