@@ -25,6 +25,9 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
 
+const val DEFAULT_HAPTIC_DURATION_MS = 15
+const val DEFAULT_TIMER_SECONDS = 3
+
 class RemoteActivity : AppCompatActivity(), MessageClient.OnMessageReceivedListener, DataClient.OnDataChangedListener {
 
     companion object {
@@ -35,9 +38,9 @@ class RemoteActivity : AppCompatActivity(), MessageClient.OnMessageReceivedListe
     private val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
     private var vibrator: Vibrator? = null
     private var messageClient: MessageClient? = null
-    private var timerSeconds = 3
+    private var timerSeconds = DEFAULT_TIMER_SECONDS
     private var countdownTimer: CountDownTimer? = null
-    private var hapticDurationMs = 30L
+    private var hapticDurationMs = DEFAULT_HAPTIC_DURATION_MS.toLong()
     private var vibrateOnCountdown = true
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -81,8 +84,8 @@ class RemoteActivity : AppCompatActivity(), MessageClient.OnMessageReceivedListe
                     for (item in dataItems) {
                         if (item.uri.path == "/camera_remote/settings") {
                             val dataMap = DataMapItem.fromDataItem(item).dataMap
-                            hapticDurationMs = dataMap.getInt("haptic_duration_ms", 30).toLong()
-                            timerSeconds = dataMap.getInt("default_timer_seconds", 3)
+                            hapticDurationMs = dataMap.getInt("haptic_duration_ms", DEFAULT_HAPTIC_DURATION_MS).toLong()
+                            timerSeconds = dataMap.getInt("default_timer_seconds", DEFAULT_TIMER_SECONDS)
                             vibrateOnCountdown = dataMap.getBoolean("vibrate_on_countdown", true)
                             Log.d(TAG, "Loaded settings: haptic=${hapticDurationMs}ms, timer=${timerSeconds}s, vibrateCountdown=$vibrateOnCountdown")
                         }
@@ -282,8 +285,8 @@ class RemoteActivity : AppCompatActivity(), MessageClient.OnMessageReceivedListe
         for (event in dataEvents) {
             if (event.type == DataEvent.TYPE_CHANGED && event.dataItem.uri.path == "/camera_remote/settings") {
                 val dataMap = DataMapItem.fromDataItem(event.dataItem).dataMap
-                hapticDurationMs = dataMap.getInt("haptic_duration_ms", 30).toLong()
-                timerSeconds = dataMap.getInt("default_timer_seconds", 3)
+                hapticDurationMs = dataMap.getInt("haptic_duration_ms", DEFAULT_HAPTIC_DURATION_MS).toLong()
+                timerSeconds = dataMap.getInt("default_timer_seconds", DEFAULT_TIMER_SECONDS)
                 vibrateOnCountdown = dataMap.getBoolean("vibrate_on_countdown", true)
                 Log.d(TAG, "Settings updated: haptic=${hapticDurationMs}ms, timer=${timerSeconds}s, vibrateCountdown=$vibrateOnCountdown")
             }

@@ -12,34 +12,36 @@
             android:layout_height="wrap_content"
             android:layout_gravity="top|center_horizontal"
             android:layout_marginTop="8dp"
-            android:paddingHorizontal="12dp"
-            android:paddingVertical="3dp"
             android:background="@drawable/bg_status_active"
             android:drawablePadding="6dp"
+            android:gravity="center"
+            android:paddingHorizontal="12dp"
+            android:paddingVertical="3dp"
             android:text="Checking..."
-            android:textSize="10sp"
             android:textColor="#E6E1E5"
-            android:gravity="center" />
+            android:textSize="10sp" />
 
         <!-- Status text below connection pill -->
-        <TextView
-            android:id="@+id/tvStatus"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_gravity="top|center_horizontal"
-            android:layout_marginTop="28dp"
-            android:text="Ready"
-            android:textSize="9sp"
-            android:textColor="#938F99"
-            android:gravity="center" />
 
         <!-- Camera/Photo (light blue) at 9 o'clock — left middle -->
+
+        <TextView
+            android:id="@+id/tvStatus"
+            android:layout_width="150dp"
+            android:layout_height="55dp"
+            android:layout_gravity="top|center_horizontal"
+            android:layout_marginTop="28dp"
+            android:gravity="center"
+            android:text="Ready"
+            android:textColor="#938F99"
+            android:textSize="20sp" />
+
         <ImageButton
             android:id="@+id/btnOpenCamera"
-            android:layout_width="36dp"
-            android:layout_height="36dp"
+            android:layout_width="45dp"
+            android:layout_height="45dp"
             android:layout_gravity="center"
-            android:translationX="-52dp"
+            android:translationX="-70dp"
             android:translationY="0dp"
             android:background="@drawable/bg_btn_camera"
             android:src="@drawable/ic_camera"
@@ -56,8 +58,8 @@
             android:layout_width="36dp"
             android:layout_height="36dp"
             android:layout_gravity="center"
-            android:translationX="-37dp"
-            android:translationY="37dp"
+            android:translationX="49.5dp"
+            android:translationY="49.5dp"
             android:background="@drawable/bg_btn_flash"
             android:src="@drawable/ic_flash"
             android:tint="#000000"
@@ -68,30 +70,35 @@
             android:contentDescription="Toggle Flash" />
 
         <!-- Flip (grey) at 6 o'clock — bottom middle -->
+
+        <!-- Video (pastel purple) at ~4:30 o'clock — bottom-right -->
+
         <ImageButton
             android:id="@+id/btnSwitch"
             android:layout_width="36dp"
             android:layout_height="36dp"
             android:layout_gravity="center"
-            android:translationX="0dp"
-            android:translationY="52dp"
             android:background="@drawable/bg_btn_switch"
+            android:contentDescription="Switch Camera"
+            android:padding="8dp"
+            android:scaleType="centerInside"
             android:src="@drawable/ic_flip_camera"
             android:tint="#000000"
             android:scaleType="centerInside"
             android:padding="8dp"
             android:clipToOutline="true"
             android:outlineProvider="background"
-            android:contentDescription="Switch Camera" />
+            android:contentDescription="Switch Camera"
+            android:translationX="0dp"
+            android:translationY="70dp" />
 
-        <!-- Video (pastel purple) at ~4:30 o'clock — bottom-right -->
         <ImageButton
             android:id="@+id/btnVideo"
-            android:layout_width="36dp"
-            android:layout_height="36dp"
+            android:layout_width="45dp"
+            android:layout_height="45dp"
             android:layout_gravity="center"
-            android:translationX="37dp"
-            android:translationY="37dp"
+            android:translationX="70dp"
+            android:translationY="0dp"
             android:background="@drawable/bg_btn_video"
             android:src="@drawable/ic_videocam"
             android:tint="#000000"
@@ -102,27 +109,31 @@
             android:contentDescription="Video Mode" />
 
         <!-- Timer (pastel red) at 3 o'clock — right middle -->
+
+        <!-- Shutter (white, large) at center -->
         <ImageButton
             android:id="@+id/btnTimer"
             android:layout_width="36dp"
             android:layout_height="36dp"
             android:layout_gravity="center"
-            android:translationX="52dp"
-            android:translationY="0dp"
             android:background="@drawable/bg_btn_timer"
+            android:contentDescription="Timer"
+            android:padding="8dp"
+            android:scaleType="centerInside"
             android:src="@drawable/ic_timer"
             android:tint="#000000"
             android:scaleType="centerInside"
             android:padding="8dp"
             android:clipToOutline="true"
             android:outlineProvider="background"
-            android:contentDescription="Timer" />
+            android:contentDescription="Timer"
+            android:translationX="-49.5dp"
+            android:translationY="49.5dp" />
 
-        <!-- Shutter (white, large) at center -->
         <ImageButton
             android:id="@+id/btnCapture"
-            android:layout_width="60dp"
-            android:layout_height="60dp"
+            android:layout_width="70dp"
+            android:layout_height="70dp"
             android:layout_gravity="center"
             android:background="@drawable/bg_btn_shutter"
             android:src="@drawable/ic_photo_camera"
