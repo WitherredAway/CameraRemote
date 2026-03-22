@@ -206,8 +206,26 @@ class CameraControlService : AccessibilityService() {
     }
 
     private fun captureAfterOpen() {
-        Log.d(TAG, "captureAfterOpen: retrying after camera open")
-        doCapture()
+        Log.d(TAG, "captureAfterOpen: retrying after camera open (photo priority)")
+        // After opening camera via shutter button, prioritize PHOTO shutter
+        // over record button — don't accidentally start video recording
+        if (findAndClickButton(shutterDescriptions)) {
+            sendStatusToWatch("captured")
+            return
+        }
+        // If no shutter found, camera might still be in video mode despite our intent.
+        // Try record button as last resort (user can at least interact)
+        if (findAndClickButton(recordDescriptions)) {
+            sendStatusToWatch("captured")
+            return
+        }
+        // Fallback
+        if (settings.isShutterFallbackEnabled()) {
+            Log.d(TAG, "captureAfterOpen: shutter not found, trying fallback tap")
+            tapShutterFallback()
+        } else {
+            sendStatusToWatch("shutter_not_found")
+        }
     }
 
     private fun doCapture() {
@@ -354,10 +372,11 @@ class CameraControlService : AccessibilityService() {
             return
         }
 
-        // If accessibility matching totally failed, try findAndClickButton with flash descriptions
-        Log.d(TAG, "toggleFlash: specific flash matching failed, trying broad search")
-        if (findAndClickButton(flashDescriptions)) {
-            handler.postDelayed({ selectFlashSubmenuOption() }, settings.getFlashSubmenuDelayMs().toLong())
+            // If accessibility matching totally failed, try findAndClickButton with flash descriptions
+            Log.d(TAG, "toggleFlash: specific flash matching failed, trying broad search")
+            if (findAndClickButton(flashDescriptions)) {
+                flashSubmenuRetries = 0
+                handler.postDelayed({ selectFlashSubmenuOption() }, settings.getFlashSubmenuDelayMs().toLong())
             return
         }
 
@@ -389,6 +408,7 @@ class CameraControlService : AccessibilityService() {
                         rootNode.recycle()
 
                         // After clicking, wait for submenu and try to select on/off
+                        flashSubmenuRetries = 0
                         handler.postDelayed({
                             selectFlashSubmenuOption()
                         }, settings.getFlashSubmenuDelayMs().toLong())
@@ -409,6 +429,8 @@ class CameraControlService : AccessibilityService() {
      * FRONT_FLASH_OFF, FRONT_FLASH_ON to identify flash submenu items.
      * All items share desc='Flash', so we must check the text field.
      */
+    private var flashSubmenuRetries = 0
+
     private fun selectFlashSubmenuOption() {
         // Dump nodes for debugging
         dumpVisibleNodes()
@@ -503,12 +525,21 @@ class CameraControlService : AccessibilityService() {
             }
         }
 
-        // No submenu found, assume the first click toggled it
-        flashOn = !flashOn
-        Log.d(TAG, "No flash submenu options found, assuming toggle -> flash ${if (flashOn) "on" else "off"}")
-        sendStatusToWatch(if (flashOn) "flash_on" else "flash_off")
+        // No submenu found — retry once with longer delay (submenu may not have rendered yet)
         recycleNodes(allNodes)
         rootNode.recycle()
+        if (flashSubmenuRetries < 1) {
+            flashSubmenuRetries++
+            Log.d(TAG, "Flash submenu not found, retrying (attempt $flashSubmenuRetries)")
+            handler.postDelayed({ selectFlashSubmenuOption() }, 500L)
+            return
+        }
+
+        // After retry, assume the first click toggled it
+        flashSubmenuRetries = 0
+        flashOn = !flashOn
+        Log.d(TAG, "No flash submenu options found after retry, assuming toggle -> flash ${if (flashOn) "on" else "off"}")
+        sendStatusToWatch(if (flashOn) "flash_on" else "flash_off")
     }
 
     /**
