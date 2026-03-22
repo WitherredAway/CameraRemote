@@ -153,6 +153,33 @@ class RemoteActivity : AppCompatActivity(), MessageClient.OnMessageReceivedListe
             sendCommand("preview_capture")
         }
 
+        // Burst Timer button: countdown then burst capture
+        binding.btnBurstTimer.setOnClickListener {
+            vibrate()
+            if (isCountdownActive) {
+                // Cancel active countdown
+                countdownTimer?.cancel()
+                isCountdownActive = false
+                binding.tvStatus.text = "Cancelled"
+                return@setOnClickListener
+            }
+            isCountdownActive = true
+            val totalMs = timerSeconds * 1000L
+            countdownTimer = object : CountDownTimer(totalMs, 1000) {
+                override fun onTick(millisUntilFinished: Long) {
+                    val secondsLeft = (millisUntilFinished / 1000) + 1
+                    runOnUiThread { binding.tvStatus.text = "Burst $secondsLeft\u2026" }
+                    if (vibrateOnCountdown) vibrate()
+                }
+                override fun onFinish() {
+                    isCountdownActive = false
+                    sendCommand("burst_capture")
+                    runOnUiThread { binding.tvStatus.text = "Burst!" }
+                    vibrate()
+                }
+            }.start()
+        }
+
         // Preview overlay buttons
         binding.btnPreviewSave.setOnClickListener {
             vibrate()

@@ -89,14 +89,14 @@
             android:translationX="0dp"
             android:translationY="70dp" />
 
-        <!-- Preview (blue-grey) below flip button -->
+        <!-- Preview (blue-grey) at ~8 o'clock — between timer and camera -->
         <ImageButton
             android:id="@+id/btnPreview"
             android:layout_width="28dp"
             android:layout_height="28dp"
             android:layout_gravity="center"
-            android:translationX="0dp"
-            android:translationY="100dp"
+            android:translationX="-65dp"
+            android:translationY="37dp"
             android:background="@drawable/bg_btn_preview"
             android:src="@drawable/ic_preview"
             android:tint="#000000"
@@ -105,6 +105,23 @@
             android:clipToOutline="true"
             android:outlineProvider="background"
             android:contentDescription="Preview" />
+
+        <!-- Burst Timer (pastel orange) at ~4 o'clock — between flash and video -->
+        <ImageButton
+            android:id="@+id/btnBurstTimer"
+            android:layout_width="28dp"
+            android:layout_height="28dp"
+            android:layout_gravity="center"
+            android:translationX="65dp"
+            android:translationY="37dp"
+            android:background="@drawable/bg_btn_burst"
+            android:src="@drawable/ic_burst"
+            android:tint="#000000"
+            android:scaleType="centerInside"
+            android:padding="5dp"
+            android:clipToOutline="true"
+            android:outlineProvider="background"
+            android:contentDescription="Burst Timer" />
 
         <ImageButton
             android:id="@+id/btnVideo"
