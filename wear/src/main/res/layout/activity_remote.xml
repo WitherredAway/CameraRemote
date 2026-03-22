@@ -12,7 +12,6 @@
         android:layout_height="match_parent"
         android:fillViewport="true"
         android:focusable="true"
-        android:focusableInTouchMode="true"
         app:boxedEdges="all">
 
         <LinearLayout

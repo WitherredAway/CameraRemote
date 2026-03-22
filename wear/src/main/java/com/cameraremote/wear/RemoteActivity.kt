@@ -7,6 +7,8 @@ import android.os.Vibrator
 import android.os.VibratorManager
 import android.util.Log
 import android.view.MotionEvent
+import android.widget.ImageButton
+import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import com.cameraremote.wear.databinding.ActivityRemoteBinding
 import com.google.android.gms.wearable.MessageClient
@@ -33,6 +35,7 @@ class RemoteActivity : AppCompatActivity(), MessageClient.OnMessageReceivedListe
     override fun onCreate(savedInstanceState: Bundle?) {
         DynamicColors.applyToActivityIfAvailable(this)
         super.onCreate(savedInstanceState)
+        Log.d(TAG, "onCreate started")
         binding = ActivityRemoteBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
@@ -55,9 +58,19 @@ class RemoteActivity : AppCompatActivity(), MessageClient.OnMessageReceivedListe
             Log.e(TAG, "Failed to get MessageClient", e)
             null
         }
+        Log.d(TAG, "MessageClient initialized: ${messageClient != null}")
 
-        // Rotary/bezel scrolling support
-        binding.scrollView.requestFocus()
+        setupRotaryInput()
+        setupButtons()
+        Log.d(TAG, "onCreate completed")
+    }
+
+    private fun setupRotaryInput() {
+        // Request focus after layout is ready so rotary/bezel scrolling works
+        binding.scrollView.post {
+            binding.scrollView.isFocusableInTouchMode = true
+            binding.scrollView.requestFocus()
+        }
         binding.scrollView.setOnGenericMotionListener { _, event ->
             if (event.action == MotionEvent.ACTION_SCROLL) {
                 val delta = -event.getAxisValue(MotionEvent.AXIS_SCROLL) * 200f
@@ -65,17 +78,29 @@ class RemoteActivity : AppCompatActivity(), MessageClient.OnMessageReceivedListe
                 true
             } else false
         }
+    }
 
-        binding.btnOpenCamera.setOnClickListener { sendCommand("open_camera") }
-        binding.btnCapture.setOnClickListener { sendCommand("take_photo") }
-        binding.btnTimer.setOnClickListener { sendCommand("take_photo_timer") }
-        binding.btnFlash.setOnClickListener { sendCommand("toggle_flash") }
-        binding.btnSwitch.setOnClickListener { sendCommand("switch_camera") }
-        binding.btnVideo.setOnClickListener { sendCommand("open_video") }
+    private fun setupButtons() {
+        fun bindButton(button: ImageButton, command: String, label: String) {
+            button.setOnClickListener {
+                Log.d(TAG, "Button clicked: $label ($command)")
+                Toast.makeText(this, label, Toast.LENGTH_SHORT).show()
+                sendCommand(command)
+            }
+            Log.d(TAG, "Button bound: $label -> ${button.id}")
+        }
+
+        bindButton(binding.btnOpenCamera, "open_camera", "Open Camera")
+        bindButton(binding.btnCapture, "take_photo", "Capture")
+        bindButton(binding.btnTimer, "take_photo_timer", "Timer")
+        bindButton(binding.btnFlash, "toggle_flash", "Flash")
+        bindButton(binding.btnSwitch, "switch_camera", "Switch")
+        bindButton(binding.btnVideo, "open_video", "Video")
     }
 
     override fun onResume() {
         super.onResume()
+        Log.d(TAG, "onResume")
         try {
             messageClient?.addListener(this)
         } catch (e: Exception) {
@@ -86,6 +111,7 @@ class RemoteActivity : AppCompatActivity(), MessageClient.OnMessageReceivedListe
 
     override fun onPause() {
         super.onPause()
+        Log.d(TAG, "onPause")
         try {
             messageClient?.removeListener(this)
         } catch (e: Exception) {
@@ -97,6 +123,7 @@ class RemoteActivity : AppCompatActivity(), MessageClient.OnMessageReceivedListe
         scope.launch {
             try {
                 val nodes = Wearable.getNodeClient(this@RemoteActivity).connectedNodes.await()
+                Log.d(TAG, "Connected nodes: ${nodes.size}")
                 runOnUiThread {
                     if (nodes.isNotEmpty()) {
                         binding.tvConnection.setBackgroundResource(R.drawable.bg_status_active)
@@ -117,26 +144,33 @@ class RemoteActivity : AppCompatActivity(), MessageClient.OnMessageReceivedListe
     }
 
     private fun sendCommand(command: String) {
+        Log.d(TAG, "sendCommand: $command")
         vibrate()
         binding.tvStatus.text = formatCommand(command)
 
         scope.launch {
             try {
                 val nodes = Wearable.getNodeClient(this@RemoteActivity).connectedNodes.await()
+                Log.d(TAG, "Sending '$command' to ${nodes.size} node(s)")
                 if (nodes.isEmpty()) {
+                    Log.w(TAG, "No connected nodes for command: $command")
                     runOnUiThread { binding.tvStatus.text = "No phone connected" }
                     return@launch
                 }
                 val mc = messageClient ?: run {
+                    Log.e(TAG, "MessageClient is null")
                     runOnUiThread { binding.tvStatus.text = "API not available" }
                     return@launch
                 }
                 for (node in nodes) {
                     mc.sendMessage(node.id, "/camera_remote", command.toByteArray()).await()
                     Log.d(TAG, "Command '$command' sent to ${node.displayName}")
+                    runOnUiThread {
+                        binding.tvStatus.text = "Sent: ${formatCommand(command)}"
+                    }
                 }
             } catch (e: Exception) {
-                Log.e(TAG, "Failed to send command", e)
+                Log.e(TAG, "Failed to send command: $command", e)
                 runOnUiThread { binding.tvStatus.text = "Send failed" }
             }
         }
@@ -157,6 +191,7 @@ class RemoteActivity : AppCompatActivity(), MessageClient.OnMessageReceivedListe
     override fun onMessageReceived(messageEvent: MessageEvent) {
         if (messageEvent.path == "/camera_remote/status") {
             val status = String(messageEvent.data)
+            Log.d(TAG, "Status received from phone: $status")
             runOnUiThread {
                 binding.tvStatus.text = formatStatus(status)
                 vibrate()
