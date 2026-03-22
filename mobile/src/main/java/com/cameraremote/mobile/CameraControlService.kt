@@ -153,19 +153,21 @@ class CameraControlService : AccessibilityService() {
 
     private fun openCamera() {
         try {
+            // CLEAR_TASK forces the camera app to restart fresh instead of
+            // resuming in its last mode (which might be video)
             val intent = Intent(MediaStore.INTENT_ACTION_STILL_IMAGE_CAMERA).apply {
-                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK)
             }
-            Log.d(TAG, "openCamera: launching STILL_IMAGE_CAMERA intent")
+            Log.d(TAG, "openCamera: launching STILL_IMAGE_CAMERA with CLEAR_TASK")
             startActivity(intent)
             sendStatusToWatch("camera_opened")
         } catch (e: Exception) {
             Log.e(TAG, "Failed to open camera with STILL_IMAGE intent", e)
             try {
                 val fallback = Intent(MediaStore.ACTION_IMAGE_CAPTURE).apply {
-                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK)
                 }
-                Log.d(TAG, "openCamera: trying IMAGE_CAPTURE fallback")
+                Log.d(TAG, "openCamera: trying IMAGE_CAPTURE fallback with CLEAR_TASK")
                 startActivity(fallback)
                 sendStatusToWatch("camera_opened")
             } catch (e2: Exception) {
@@ -228,6 +230,9 @@ class CameraControlService : AccessibilityService() {
 
     private fun captureAfterOpen() {
         Log.d(TAG, "captureAfterOpen: retrying after camera open (photo priority)")
+
+        // Dump ALL nodes so we can see what the camera UI looks like
+        dumpAllNodes("captureAfterOpen")
 
         // First try photo shutter buttons
         if (findAndClickButton(shutterDescriptions)) {
@@ -699,25 +704,22 @@ class CameraControlService : AccessibilityService() {
     /**
      * Dump ALL nodes (clickable or not) to logcat for debugging flash submenu.
      */
-    private fun dumpAllNodes() {
+    private fun dumpAllNodes(label: String = "dumpAllNodes") {
         val rootNode = rootInActiveWindow ?: run {
-            Log.d(TAG, "dumpAllNodes: no active window")
+            Log.d(TAG, "$label: no active window")
             return
         }
         val all = findAllNodes(rootNode)
-        val screenHeight = resources.displayMetrics.heightPixels
-        Log.d(TAG, "=== ALL NODES IN TOP 30% (screen height=$screenHeight) ===")
+        Log.d(TAG, "=== $label: ALL NODES (${all.size}) ===")
         for ((i, node) in all.withIndex()) {
             val bounds = android.graphics.Rect()
             node.getBoundsInScreen(bounds)
-            if (bounds.top < screenHeight * 3 / 10) {
-                val contentDesc = node.contentDescription?.toString() ?: "(none)"
-                val text = node.text?.toString() ?: "(none)"
-                val className = node.className?.toString() ?: "(none)"
-                Log.d(TAG, "  [$i] class=$className desc='$contentDesc' text='$text' bounds=$bounds clickable=${node.isClickable} visible=${node.isVisibleToUser}")
-            }
+            val contentDesc = node.contentDescription?.toString() ?: "(none)"
+            val text = node.text?.toString() ?: "(none)"
+            val className = node.className?.toString() ?: "(none)"
+            Log.d(TAG, "  [$i] class=$className desc='$contentDesc' text='$text' bounds=$bounds clickable=${node.isClickable} visible=${node.isVisibleToUser}")
         }
-        Log.d(TAG, "=== END ALL NODES ===")
+        Log.d(TAG, "=== END $label ===")
         recycleNodes(all)
         rootNode.recycle()
     }
