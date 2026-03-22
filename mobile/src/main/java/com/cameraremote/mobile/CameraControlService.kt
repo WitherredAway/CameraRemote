@@ -52,10 +52,6 @@ class CameraControlService : AccessibilityService() {
         "video", "record", "video mode", "switch to video",
         "start recording", "record video", "movie", "camcorder"
     )
-    // Words that indicate a node is NOT the flash button
-    private val flashExcludeWords = listOf(
-        "motion", "photo", "picture", "image", "mode"
-    )
 
     override fun onServiceConnected() {
         super.onServiceConnected()
@@ -242,102 +238,55 @@ class CameraControlService : AccessibilityService() {
     }
 
     private fun toggleFlash() {
-        // Strategy: find the actual flash button (not motion photo/pictures),
-        // click it to open submenu, then select on or off
-        Log.d(TAG, "toggleFlash: flashOn=$flashOn, looking for flash button")
+        // Samsung camera (and many others) use icon-only flash buttons that don't
+        // expose useful text to accessibility. Use a two-step gesture approach:
+        // 1. Tap the flash icon area to open the submenu
+        // 2. After submenu opens, tap the "on" or "off" icon position
+        Log.d(TAG, "toggleFlash: flashOn=$flashOn")
 
-        // First try to find and click the flash button specifically
-        if (findAndClickFlashButton()) {
-            // Flash button clicked — a submenu may appear. Wait then select on/off.
-            handler.postDelayed({
-                if (flashOn) {
-                    // Currently on, try to turn off
-                    if (findAndClickFlashOption(listOf("flash off", "off"))) {
-                        flashOn = false
-                        sendStatusToWatch("flash_off")
-                    } else {
-                        // No submenu, the click itself toggled it
-                        flashOn = false
-                        sendStatusToWatch("flash_off")
-                    }
-                } else {
-                    // Currently off, try to turn on
-                    if (findAndClickFlashOption(listOf("flash on", "on"))) {
-                        flashOn = true
-                        sendStatusToWatch("flash_on")
-                    } else {
-                        // No submenu, the click itself toggled it
-                        flashOn = true
-                        sendStatusToWatch("flash_on")
-                    }
-                }
-            }, settings.getFlashSubmenuDelayMs().toLong())
-        } else {
-            Log.d(TAG, "toggleFlash: flash button not found")
-            sendStatusToWatch("flash_not_found")
+        // First dump all visible nodes for debugging
+        dumpVisibleNodes()
+
+        // Try accessibility-based approach first
+        if (tryAccessibilityFlashToggle()) {
+            return
         }
+
+        // Fallback: gesture-based tap at known flash positions
+        Log.d(TAG, "toggleFlash: accessibility failed, using gesture taps")
+        gestureFlashToggle()
     }
 
     /**
-     * Find and click the flash button specifically, filtering out motion photo/pictures.
+     * Try to toggle flash using accessibility node matching.
+     * Returns true if we found and clicked something.
      */
-    private fun findAndClickFlashButton(): Boolean {
+    private fun tryAccessibilityFlashToggle(): Boolean {
         val rootNode = rootInActiveWindow ?: return false
 
-        // Collect all clickable nodes and find the one that is actually the flash button
+        // Search all clickable nodes for flash-related content descriptions
         val clickable = findClickableNodes(rootNode)
         for (node in clickable) {
             val contentDesc = node.contentDescription?.toString()?.lowercase() ?: ""
-            val text = node.text?.toString()?.lowercase() ?: ""
-            val combined = "$contentDesc $text"
 
-            // Must contain a flash-related word
-            val isFlash = flashDescriptions.any { desc -> combined.contains(desc) }
-                    || contentDesc.contains("flash")
+            // Match nodes whose contentDescription is specifically about flash
+            // (e.g. "Flash", "Flash off", "Flash on", "Flash auto")
+            // but NOT "Motion photo" or similar
+            if (contentDesc.contains("flash") && !contentDesc.contains("motion")) {
+                if (node.isVisibleToUser) {
+                    val result = node.performAction(AccessibilityNodeInfo.ACTION_CLICK)
+                    if (result) {
+                        Log.d(TAG, "Accessibility: clicked flash node: '$contentDesc'")
+                        recycleNodes(clickable)
+                        rootNode.recycle()
 
-            // Must NOT contain excluded words (motion photo, etc.)
-            val isExcluded = flashExcludeWords.any { word -> combined.contains(word) }
-
-            if (isFlash && !isExcluded && node.isVisibleToUser) {
-                val result = node.performAction(AccessibilityNodeInfo.ACTION_CLICK)
-                if (result) {
-                    Log.d(TAG, "Clicked flash button: contentDesc='$contentDesc' text='$text'")
-                    recycleNodes(clickable)
-                    rootNode.recycle()
-                    return true
-                }
-            }
-        }
-
-        // Try parent-clicking approach for non-clickable flash nodes
-        for (desc in flashDescriptions + listOf("flash")) {
-            val nodes = rootNode.findAccessibilityNodeInfosByText(desc)
-            for (node in nodes) {
-                val contentDesc = node.contentDescription?.toString()?.lowercase() ?: ""
-                val text = node.text?.toString()?.lowercase() ?: ""
-                val combined = "$contentDesc $text"
-                val isExcluded = flashExcludeWords.any { word -> combined.contains(word) }
-
-                if (!isExcluded) {
-                    val parent = node.parent
-                    if (parent != null && parent.isClickable) {
-                        val parentDesc = parent.contentDescription?.toString()?.lowercase() ?: ""
-                        val parentExcluded = flashExcludeWords.any { word -> parentDesc.contains(word) }
-                        if (!parentExcluded) {
-                            val result = parent.performAction(AccessibilityNodeInfo.ACTION_CLICK)
-                            if (result) {
-                                Log.d(TAG, "Clicked parent of flash node: '$combined'")
-                                parent.recycle()
-                                node.recycle()
-                                recycleNodes(clickable)
-                                rootNode.recycle()
-                                return true
-                            }
-                        }
-                        parent.recycle()
+                        // After clicking, wait for submenu and try to select on/off
+                        handler.postDelayed({
+                            selectFlashSubmenuOption()
+                        }, settings.getFlashSubmenuDelayMs().toLong())
+                        return true
                     }
                 }
-                node.recycle()
             }
         }
 
@@ -347,49 +296,130 @@ class CameraControlService : AccessibilityService() {
     }
 
     /**
-     * After flash submenu opens, find and click a specific flash option (on/off).
+     * After the flash submenu opens, try to click the on or off option.
      */
-    private fun findAndClickFlashOption(options: List<String>): Boolean {
-        val rootNode = rootInActiveWindow ?: return false
-        for (option in options) {
-            val nodes = rootNode.findAccessibilityNodeInfosByText(option)
-            for (node in nodes) {
-                val contentDesc = node.contentDescription?.toString()?.lowercase() ?: ""
-                val text = node.text?.toString()?.lowercase() ?: ""
-                // Make sure this is a flash option, not something else
-                val combined = "$contentDesc $text"
-                val isExcluded = flashExcludeWords.any { word ->
-                    combined.contains(word) && !combined.contains("flash")
+    private fun selectFlashSubmenuOption() {
+        val rootNode = rootInActiveWindow ?: run {
+            // No window, assume the click itself toggled flash
+            flashOn = !flashOn
+            sendStatusToWatch(if (flashOn) "flash_on" else "flash_off")
+            return
+        }
+
+        val clickable = findClickableNodes(rootNode)
+        val targetDesc = if (flashOn) "off" else "on"
+
+        for (node in clickable) {
+            val contentDesc = node.contentDescription?.toString()?.lowercase() ?: ""
+            // Look for "Flash on" / "Flash off" in submenu
+            if (contentDesc.contains("flash") && contentDesc.contains(targetDesc)
+                && !contentDesc.contains("motion") && node.isVisibleToUser) {
+                val result = node.performAction(AccessibilityNodeInfo.ACTION_CLICK)
+                if (result) {
+                    flashOn = !flashOn
+                    Log.d(TAG, "Clicked flash submenu: '$contentDesc' -> flash ${if (flashOn) "on" else "off"}")
+                    sendStatusToWatch(if (flashOn) "flash_on" else "flash_off")
+                    recycleNodes(clickable)
+                    rootNode.recycle()
+                    return
                 }
-                if (!isExcluded) {
-                    if (node.isClickable && node.isVisibleToUser) {
-                        val result = node.performAction(AccessibilityNodeInfo.ACTION_CLICK)
-                        if (result) {
-                            Log.d(TAG, "Clicked flash option: '$option'")
-                            node.recycle()
-                            rootNode.recycle()
-                            return true
-                        }
-                    }
-                    // Try parent
-                    val parent = node.parent
-                    if (parent != null && parent.isClickable) {
-                        val result = parent.performAction(AccessibilityNodeInfo.ACTION_CLICK)
-                        if (result) {
-                            Log.d(TAG, "Clicked parent of flash option: '$option'")
-                            parent.recycle()
-                            node.recycle()
-                            rootNode.recycle()
-                            return true
-                        }
-                        parent.recycle()
-                    }
-                }
-                node.recycle()
             }
         }
+
+        // Couldn't find specific on/off, assume the first click toggled it
+        flashOn = !flashOn
+        Log.d(TAG, "No submenu option found, assuming toggle -> flash ${if (flashOn) "on" else "off"}")
+        sendStatusToWatch(if (flashOn) "flash_on" else "flash_off")
+        recycleNodes(clickable)
         rootNode.recycle()
-        return false
+    }
+
+    /**
+     * Gesture-based flash toggle. Taps the flash icon position on screen.
+     * Samsung camera layout: flash icons appear in a row near the top.
+     * Step 1: Tap the current flash indicator to open submenu.
+     * Step 2: Tap the "on" or "off" position in the submenu.
+     */
+    private fun gestureFlashToggle() {
+        val wm = getSystemService(Context.WINDOW_SERVICE) as WindowManager
+        val metrics = DisplayMetrics()
+        @Suppress("DEPRECATION")
+        wm.defaultDisplay.getMetrics(metrics)
+        val w = metrics.widthPixels.toFloat()
+        val h = metrics.heightPixels.toFloat()
+
+        // Samsung camera: flash button row is near the top of screen
+        // From the user's screenshot (Samsung A35):
+        // Flash off icon: ~23% from left, ~7% from top
+        // Flash auto icon: ~34% from left, ~7% from top
+        // Flash on icon:  ~44% from left, ~7% from top
+        val flashY = h * 0.07f
+
+        // Step 1: Tap the current flash indicator to open submenu
+        // The indicator shows the current state and is usually in the same row
+        val flashIndicatorX = w * 0.34f  // center of the row (auto position)
+        Log.d(TAG, "gestureFlash step1: tapping flash indicator at ($flashIndicatorX, $flashY)")
+
+        tapAtPosition(flashIndicatorX, flashY) {
+            // Step 2: After submenu opens, tap on or off
+            handler.postDelayed({
+                val targetX = if (flashOn) {
+                    w * 0.23f  // Flash off position (leftmost)
+                } else {
+                    w * 0.44f  // Flash on position (rightmost)
+                }
+                Log.d(TAG, "gestureFlash step2: tapping flash ${if (flashOn) "off" else "on"} at ($targetX, $flashY)")
+
+                tapAtPosition(targetX, flashY) {
+                    flashOn = !flashOn
+                    sendStatusToWatch(if (flashOn) "flash_on" else "flash_off")
+                    Log.d(TAG, "gestureFlash: toggled to ${if (flashOn) "on" else "off"}")
+                }
+            }, settings.getFlashSubmenuDelayMs().toLong())
+        }
+    }
+
+    /**
+     * Tap a specific screen position using a gesture.
+     */
+    private fun tapAtPosition(x: Float, y: Float, onComplete: () -> Unit) {
+        val path = Path().apply { moveTo(x, y) }
+        val gesture = GestureDescription.Builder()
+            .addStroke(GestureDescription.StrokeDescription(path, 0, settings.getGestureTapDurationMs().toLong()))
+            .build()
+
+        dispatchGesture(gesture, object : GestureResultCallback() {
+            override fun onCompleted(gestureDescription: GestureDescription?) {
+                Log.d(TAG, "Tap gesture completed at ($x, $y)")
+                onComplete()
+            }
+            override fun onCancelled(gestureDescription: GestureDescription?) {
+                Log.w(TAG, "Tap gesture cancelled at ($x, $y)")
+            }
+        }, null)
+    }
+
+    /**
+     * Dump all visible clickable nodes to logcat for debugging.
+     */
+    private fun dumpVisibleNodes() {
+        val rootNode = rootInActiveWindow ?: run {
+            Log.d(TAG, "dumpVisibleNodes: no active window")
+            return
+        }
+        val clickable = findClickableNodes(rootNode)
+        Log.d(TAG, "=== VISIBLE CLICKABLE NODES (${clickable.size}) ===")
+        for ((i, node) in clickable.withIndex()) {
+            val contentDesc = node.contentDescription?.toString() ?: "(none)"
+            val text = node.text?.toString() ?: "(none)"
+            val className = node.className?.toString() ?: "(none)"
+            val bounds = android.graphics.Rect()
+            node.getBoundsInScreen(bounds)
+            Log.d(TAG, "  [$i] class=$className desc='$contentDesc' text='$text' bounds=$bounds visible=${node.isVisibleToUser}")
+        }
+        Log.d(TAG, "=== END NODES ===")
+        recycleNodes(clickable)
+        rootNode.recycle()
     }
 
     private fun findAndClickButton(descriptions: List<String>): Boolean {
