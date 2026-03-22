@@ -32,8 +32,12 @@ class CameraControlService : AccessibilityService() {
     // Common content descriptions for camera controls across popular camera apps
     private val shutterDescriptions = listOf(
         "shutter", "take photo", "capture", "camera button", "take picture",
-        "shoot", "snap", "photo", "photograph", "shutter button",
+        "shoot", "snap", "photograph", "shutter button",
         "capture button", "camera shutter"
+    )
+    private val recordDescriptions = listOf(
+        "record", "start recording", "record video", "stop recording",
+        "recording", "rec"
     )
     private val switchCameraDescriptions = listOf(
         "switch camera", "flip camera", "toggle camera", "front camera",
@@ -41,12 +45,16 @@ class CameraControlService : AccessibilityService() {
         "change camera", "switch to front", "switch to rear"
     )
     private val flashDescriptions = listOf(
-        "flash", "flash mode", "toggle flash", "flash button",
-        "flash off", "flash on", "flash auto", "flashlight"
+        "flash mode", "toggle flash", "flash button",
+        "flash off", "flash on", "flash auto"
     )
     private val videoDescriptions = listOf(
         "video", "record", "video mode", "switch to video",
         "start recording", "record video", "movie", "camcorder"
+    )
+    // Words that indicate a node is NOT the flash button
+    private val flashExcludeWords = listOf(
+        "motion", "photo", "picture", "image", "mode"
     )
 
     override fun onServiceConnected() {
@@ -126,11 +134,12 @@ class CameraControlService : AccessibilityService() {
     }
 
     /**
-     * Capture: if camera app is in foreground, tap the shutter/record button.
-     * If not in a camera app, open camera first then capture.
+     * Capture: tap the shutter/record button in the current camera app.
+     * If no camera app is detected, open camera first then capture.
+     * Does NOT re-launch camera if already in a camera app (preserves video mode).
      */
     private fun capture() {
-        Log.d(TAG, "capture: attempting to find and click shutter")
+        Log.d(TAG, "capture: attempting to find and click shutter/record")
         val root = rootInActiveWindow
         if (root == null) {
             Log.d(TAG, "capture: no active window, opening camera first")
@@ -143,7 +152,7 @@ class CameraControlService : AccessibilityService() {
             return
         }
 
-        // Check if we're in a camera app by looking for shutter-like buttons
+        // Check if we're in a camera app by looking for any camera-like buttons
         val isCameraApp = isCameraAppInForeground(root)
         root.recycle()
 
@@ -158,6 +167,7 @@ class CameraControlService : AccessibilityService() {
             return
         }
 
+        // Already in a camera app — just tap the shutter/record, don't re-launch
         doCapture()
     }
 
@@ -167,15 +177,22 @@ class CameraControlService : AccessibilityService() {
     }
 
     private fun doCapture() {
+        // Try photo shutter descriptions first
         if (findAndClickButton(shutterDescriptions)) {
             sendStatusToWatch("captured")
             return
         }
+        // Try video record button descriptions (for video mode)
+        if (findAndClickButton(recordDescriptions)) {
+            sendStatusToWatch("captured")
+            return
+        }
+        // Fallback: tap the shutter/record button position on screen
         if (settings.isShutterFallbackEnabled()) {
-            Log.d(TAG, "doCapture: shutter not found by description, trying fallback tap")
+            Log.d(TAG, "doCapture: shutter/record not found by description, trying fallback tap")
             tapShutterFallback()
         } else {
-            Log.d(TAG, "doCapture: shutter not found and fallback disabled")
+            Log.d(TAG, "doCapture: shutter/record not found and fallback disabled")
             sendStatusToWatch("shutter_not_found")
         }
     }
@@ -190,7 +207,23 @@ class CameraControlService : AccessibilityService() {
             }
         }
         // Also check for video record buttons
-        for (desc in videoDescriptions) {
+        for (desc in recordDescriptions + videoDescriptions) {
+            val nodes = root.findAccessibilityNodeInfosByText(desc)
+            if (nodes.isNotEmpty()) {
+                for (node in nodes) node.recycle()
+                return true
+            }
+        }
+        // Check for flash button (indicates camera app)
+        for (desc in flashDescriptions) {
+            val nodes = root.findAccessibilityNodeInfosByText(desc)
+            if (nodes.isNotEmpty()) {
+                for (node in nodes) node.recycle()
+                return true
+            }
+        }
+        // Check for switch camera button
+        for (desc in switchCameraDescriptions) {
             val nodes = root.findAccessibilityNodeInfosByText(desc)
             if (nodes.isNotEmpty()) {
                 for (node in nodes) node.recycle()
@@ -209,44 +242,154 @@ class CameraControlService : AccessibilityService() {
     }
 
     private fun toggleFlash() {
-        // Try to find flash button and click it.
-        // Many camera apps cycle: off -> auto -> on. We want direct on/off.
-        // Strategy: click flash button, then if a menu appears, click "on" or "off"
-        val flashOnDescriptions = listOf("flash on", "on", "flash_on")
-        val flashOffDescriptions = listOf("flash off", "off", "flash_off")
+        // Strategy: find the actual flash button (not motion photo/pictures),
+        // click it to open submenu, then select on or off
+        Log.d(TAG, "toggleFlash: flashOn=$flashOn, looking for flash button")
 
-        if (flashOn) {
-            // Try to turn flash off
-            if (findAndClickButton(flashOffDescriptions)) {
-                flashOn = false
-                sendStatusToWatch("flash_off")
-                return
-            }
-        } else {
-            // Try to turn flash on
-            if (findAndClickButton(flashOnDescriptions)) {
-                flashOn = true
-                sendStatusToWatch("flash_on")
-                return
-            }
-        }
-
-        // Fallback: just click the flash button (cycles through modes)
-        if (findAndClickButton(flashDescriptions)) {
-            flashOn = !flashOn
-            sendStatusToWatch(if (flashOn) "flash_on" else "flash_off")
-
-            // After clicking flash, a submenu might appear — try to click on/off in it
+        // First try to find and click the flash button specifically
+        if (findAndClickFlashButton()) {
+            // Flash button clicked — a submenu may appear. Wait then select on/off.
             handler.postDelayed({
                 if (flashOn) {
-                    findAndClickButton(flashOnDescriptions)
+                    // Currently on, try to turn off
+                    if (findAndClickFlashOption(listOf("flash off", "off"))) {
+                        flashOn = false
+                        sendStatusToWatch("flash_off")
+                    } else {
+                        // No submenu, the click itself toggled it
+                        flashOn = false
+                        sendStatusToWatch("flash_off")
+                    }
                 } else {
-                    findAndClickButton(flashOffDescriptions)
+                    // Currently off, try to turn on
+                    if (findAndClickFlashOption(listOf("flash on", "on"))) {
+                        flashOn = true
+                        sendStatusToWatch("flash_on")
+                    } else {
+                        // No submenu, the click itself toggled it
+                        flashOn = true
+                        sendStatusToWatch("flash_on")
+                    }
                 }
             }, settings.getFlashSubmenuDelayMs().toLong())
         } else {
+            Log.d(TAG, "toggleFlash: flash button not found")
             sendStatusToWatch("flash_not_found")
         }
+    }
+
+    /**
+     * Find and click the flash button specifically, filtering out motion photo/pictures.
+     */
+    private fun findAndClickFlashButton(): Boolean {
+        val rootNode = rootInActiveWindow ?: return false
+
+        // Collect all clickable nodes and find the one that is actually the flash button
+        val clickable = findClickableNodes(rootNode)
+        for (node in clickable) {
+            val contentDesc = node.contentDescription?.toString()?.lowercase() ?: ""
+            val text = node.text?.toString()?.lowercase() ?: ""
+            val combined = "$contentDesc $text"
+
+            // Must contain a flash-related word
+            val isFlash = flashDescriptions.any { desc -> combined.contains(desc) }
+                    || contentDesc.contains("flash")
+
+            // Must NOT contain excluded words (motion photo, etc.)
+            val isExcluded = flashExcludeWords.any { word -> combined.contains(word) }
+
+            if (isFlash && !isExcluded && node.isVisibleToUser) {
+                val result = node.performAction(AccessibilityNodeInfo.ACTION_CLICK)
+                if (result) {
+                    Log.d(TAG, "Clicked flash button: contentDesc='$contentDesc' text='$text'")
+                    recycleNodes(clickable)
+                    rootNode.recycle()
+                    return true
+                }
+            }
+        }
+
+        // Try parent-clicking approach for non-clickable flash nodes
+        for (desc in flashDescriptions + listOf("flash")) {
+            val nodes = rootNode.findAccessibilityNodeInfosByText(desc)
+            for (node in nodes) {
+                val contentDesc = node.contentDescription?.toString()?.lowercase() ?: ""
+                val text = node.text?.toString()?.lowercase() ?: ""
+                val combined = "$contentDesc $text"
+                val isExcluded = flashExcludeWords.any { word -> combined.contains(word) }
+
+                if (!isExcluded) {
+                    val parent = node.parent
+                    if (parent != null && parent.isClickable) {
+                        val parentDesc = parent.contentDescription?.toString()?.lowercase() ?: ""
+                        val parentExcluded = flashExcludeWords.any { word -> parentDesc.contains(word) }
+                        if (!parentExcluded) {
+                            val result = parent.performAction(AccessibilityNodeInfo.ACTION_CLICK)
+                            if (result) {
+                                Log.d(TAG, "Clicked parent of flash node: '$combined'")
+                                parent.recycle()
+                                node.recycle()
+                                recycleNodes(clickable)
+                                rootNode.recycle()
+                                return true
+                            }
+                        }
+                        parent.recycle()
+                    }
+                }
+                node.recycle()
+            }
+        }
+
+        recycleNodes(clickable)
+        rootNode.recycle()
+        return false
+    }
+
+    /**
+     * After flash submenu opens, find and click a specific flash option (on/off).
+     */
+    private fun findAndClickFlashOption(options: List<String>): Boolean {
+        val rootNode = rootInActiveWindow ?: return false
+        for (option in options) {
+            val nodes = rootNode.findAccessibilityNodeInfosByText(option)
+            for (node in nodes) {
+                val contentDesc = node.contentDescription?.toString()?.lowercase() ?: ""
+                val text = node.text?.toString()?.lowercase() ?: ""
+                // Make sure this is a flash option, not something else
+                val combined = "$contentDesc $text"
+                val isExcluded = flashExcludeWords.any { word ->
+                    combined.contains(word) && !combined.contains("flash")
+                }
+                if (!isExcluded) {
+                    if (node.isClickable && node.isVisibleToUser) {
+                        val result = node.performAction(AccessibilityNodeInfo.ACTION_CLICK)
+                        if (result) {
+                            Log.d(TAG, "Clicked flash option: '$option'")
+                            node.recycle()
+                            rootNode.recycle()
+                            return true
+                        }
+                    }
+                    // Try parent
+                    val parent = node.parent
+                    if (parent != null && parent.isClickable) {
+                        val result = parent.performAction(AccessibilityNodeInfo.ACTION_CLICK)
+                        if (result) {
+                            Log.d(TAG, "Clicked parent of flash option: '$option'")
+                            parent.recycle()
+                            node.recycle()
+                            rootNode.recycle()
+                            return true
+                        }
+                        parent.recycle()
+                    }
+                }
+                node.recycle()
+            }
+        }
+        rootNode.recycle()
+        return false
     }
 
     private fun findAndClickButton(descriptions: List<String>): Boolean {
