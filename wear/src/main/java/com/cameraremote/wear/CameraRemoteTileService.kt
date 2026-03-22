@@ -24,13 +24,13 @@ class CameraRemoteTileService : androidx.wear.tiles.TileService() {
         private const val COLOR_ON_SURFACE = 0xFFE6E1E5.toInt()
         private const val COLOR_PRIMARY = 0xFFD0BCFF.toInt()
 
-        // Pastel button colors (matching circle buttons in app)
-        private const val COLOR_BTN_CAMERA = 0xFFB3E5FC.toInt()  // light blue
+        // Pastel button colors (matching circle buttons in app — from colors.xml)
+        private const val COLOR_BTN_CAMERA = 0xFF90CAF9.toInt()  // blue
         private const val COLOR_BTN_CAPTURE = 0xFFF5F5F5.toInt() // white/shutter
-        private const val COLOR_BTN_TIMER = 0xFFFFCDD2.toInt()   // pastel red
-        private const val COLOR_BTN_FLASH = 0xFFFFF3B0.toInt()   // pastel yellow
-        private const val COLOR_BTN_SWITCH = 0xFFE0E0E0.toInt()  // grey
-        private const val COLOR_BTN_VIDEO = 0xFFCE93D8.toInt()   // pastel purple
+        private const val COLOR_BTN_TIMER = 0xFFFFCC80.toInt()   // orange
+        private const val COLOR_BTN_FLASH = 0xFFFFE082.toInt()   // yellow
+        private const val COLOR_BTN_SWITCH = 0xFFB0BEC5.toInt()  // blue-grey
+        private const val COLOR_BTN_VIDEO = 0xFFEF9A9A.toInt()   // red
     }
 
     override fun onTileRequest(requestParams: RequestBuilders.TileRequest): ListenableFuture<TileBuilders.Tile> {
@@ -81,9 +81,9 @@ class CameraRemoteTileService : androidx.wear.tiles.TileService() {
                     .setHorizontalAlignment(LayoutElementBuilders.HORIZONTAL_ALIGN_CENTER)
                     .addContent(buildTitle())
                     .addContent(buildSpacer(6f))
-                    .addContent(buildButtonRow1())
+                    .addContent(buildTopRow())
                     .addContent(buildSpacer(6f))
-                    .addContent(buildButtonRow2())
+                    .addContent(buildBottomRow())
                     .build()
             )
             .build()
@@ -108,23 +108,25 @@ class CameraRemoteTileService : androidx.wear.tiles.TileService() {
             .build()
     }
 
-    private fun buildButtonRow1(): LayoutElementBuilders.LayoutElement {
+    // Top row: Camera + Video (matching 9 and 3 o'clock)
+    private fun buildTopRow(): LayoutElementBuilders.LayoutElement {
         return LayoutElementBuilders.Row.Builder()
-            .addContent(buildTileButton("Open", "open_camera", COLOR_BTN_CAMERA))
+            .addContent(buildTileButton("Camera", "open_camera", COLOR_BTN_CAMERA))
             .addContent(buildHSpacer())
             .addContent(buildTileButton("Snap", "capture", COLOR_BTN_CAPTURE))
             .addContent(buildHSpacer())
-            .addContent(buildTileButton("Timer", "capture_timer", COLOR_BTN_TIMER))
+            .addContent(buildTileButton("Video", "open_video", COLOR_BTN_VIDEO))
             .build()
     }
 
-    private fun buildButtonRow2(): LayoutElementBuilders.LayoutElement {
+    // Bottom row: Timer + Flip + Flash
+    private fun buildBottomRow(): LayoutElementBuilders.LayoutElement {
         return LayoutElementBuilders.Row.Builder()
-            .addContent(buildTileButton("Flash", "toggle_flash", COLOR_BTN_FLASH))
+            .addContent(buildTileButton("Timer", "capture_timer", COLOR_BTN_TIMER))
             .addContent(buildHSpacer())
             .addContent(buildTileButton("Flip", "switch_camera", COLOR_BTN_SWITCH))
             .addContent(buildHSpacer())
-            .addContent(buildTileButton("Video", "open_video", COLOR_BTN_VIDEO))
+            .addContent(buildTileButton("Flash", "toggle_flash", COLOR_BTN_FLASH))
             .build()
     }
 
