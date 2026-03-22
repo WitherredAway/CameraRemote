@@ -57,6 +57,8 @@ class RemoteActivity : AppCompatActivity(), MessageClient.OnMessageReceivedListe
     private var lastPreviewUri: String? = null
     private val zoomQueue = mutableListOf<String>()
     private var isProcessingZoom = false
+    private var lastZoomSentTime = 0L
+    private val ZOOM_INTERVAL_MS = 200L
     private val heartbeatHandler = Handler(Looper.getMainLooper())
     private val heartbeatRunnable = object : Runnable {
         override fun run() {
@@ -489,11 +491,10 @@ class RemoteActivity : AppCompatActivity(), MessageClient.OnMessageReceivedListe
             if (zoomQueue.isNotEmpty()) {
                 val cmd = zoomQueue.removeAt(0)
                 sendCommand(cmd)
-                if (zoomQueue.isNotEmpty()) {
-                    heartbeatHandler.postDelayed(this, 200L)
-                } else {
-                    isProcessingZoom = false
-                }
+                lastZoomSentTime = System.currentTimeMillis()
+                // Always schedule next check after interval, even if queue looks empty
+                // — more ticks may arrive during the wait
+                heartbeatHandler.postDelayed(this, ZOOM_INTERVAL_MS)
             } else {
                 isProcessingZoom = false
             }
@@ -505,7 +506,7 @@ class RemoteActivity : AppCompatActivity(), MessageClient.OnMessageReceivedListe
             event.isFromSource(InputDeviceCompat.SOURCE_ROTARY_ENCODER)) {
             val delta = -event.getAxisValue(MotionEventCompat.AXIS_SCROLL)
 
-            // Queue rotation ticks and process with small delay between each
+            // Queue rotation ticks — they arrive ~10ms apart from bezel
             if (delta > 0) {
                 zoomQueue.add("zoom_in:1")
             } else if (delta < 0) {
@@ -514,7 +515,10 @@ class RemoteActivity : AppCompatActivity(), MessageClient.OnMessageReceivedListe
 
             if (!isProcessingZoom) {
                 isProcessingZoom = true
-                heartbeatHandler.post(processZoomRunnable)
+                // Ensure minimum interval since last command sent
+                val elapsed = System.currentTimeMillis() - lastZoomSentTime
+                val delay = maxOf(0L, ZOOM_INTERVAL_MS - elapsed)
+                heartbeatHandler.postDelayed(processZoomRunnable, delay)
             }
             vibrate()
             return true
