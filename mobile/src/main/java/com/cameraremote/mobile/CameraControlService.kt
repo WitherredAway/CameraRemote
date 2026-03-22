@@ -955,8 +955,22 @@ class CameraControlService : AccessibilityService() {
     private fun burstCapture() {
         val burstCount = settings.getBurstCount()
         sendStatusToWatch("burst_$burstCount")
-        for (i in 0 until burstCount) {
-            handler.postDelayed({ doCapture() }, i * 500L)
+        burstCaptureNext(1, burstCount)
+    }
+
+    private fun burstCaptureNext(current: Int, total: Int) {
+        if (current > total) return
+        // Try to click the shutter button
+        val clicked = findAndClickButton(shutterDescriptions)
+        if (clicked) {
+            sendStatusToWatch("burst_${current}_of_$total")
+            Log.d(TAG, "burstCapture: shot $current/$total taken")
+            // Wait before next shot to let camera process
+            handler.postDelayed({ burstCaptureNext(current + 1, total) }, 300L)
+        } else {
+            // Shutter not found yet, retry after a short delay (up to 2s)
+            Log.d(TAG, "burstCapture: shutter not found for shot $current, retrying...")
+            handler.postDelayed({ burstCaptureNext(current, total) }, 100L)
         }
     }
 

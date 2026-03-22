@@ -471,6 +471,11 @@ class RemoteActivity : AppCompatActivity(), MessageClient.OnMessageReceivedListe
             else -> {
                 // Handle dynamic statuses like "burst_5", "timer_3s"
                 when {
+                    status.startsWith("burst_") && status.contains("_of_") -> {
+                        // burst_2_of_5 -> "Burst 2/5"
+                        val parts = status.removePrefix("burst_").split("_of_")
+                        "Burst ${parts[0]}/${parts[1]}"
+                    }
                     status.startsWith("burst_") -> {
                         val count = status.removePrefix("burst_").toIntOrNull() ?: 0
                         "Burst $count\u00D7"
