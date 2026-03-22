@@ -28,6 +28,7 @@ class SettingsActivity : AppCompatActivity() {
         val fallbackPositionInput = findViewById<EditText>(R.id.fallbackPositionInput)
         val gestureTapDurationInput = findViewById<EditText>(R.id.gestureTapDurationInput)
         val flashSubmenuDelayInput = findViewById<EditText>(R.id.flashSubmenuDelayInput)
+        val burstCountInput = findViewById<EditText>(R.id.burstCountInput)
 
         // Watch section
         val hapticDurationInput = findViewById<EditText>(R.id.hapticDurationInput)
@@ -39,6 +40,7 @@ class SettingsActivity : AppCompatActivity() {
         // Load current values - Camera Control
         autoOpenCameraSwitch.isChecked = settings.isAutoOpenCameraEnabled()
         cameraLaunchDelayInput.setText(settings.getCameraLaunchDelayMs().toString())
+        burstCountInput.setText(settings.getBurstCount().toString())
         shutterFallbackSwitch.isChecked = settings.isShutterFallbackEnabled()
         fallbackPositionInput.setText(settings.getShutterFallbackPosition().toString())
         gestureTapDurationInput.setText(settings.getGestureTapDurationMs().toString())
@@ -63,7 +65,7 @@ class SettingsActivity : AppCompatActivity() {
             override fun afterTextChanged(s: Editable?) { showSave() }
         }
         val inputs = listOf(
-            cameraLaunchDelayInput, fallbackPositionInput, gestureTapDurationInput,
+            cameraLaunchDelayInput, burstCountInput, fallbackPositionInput, gestureTapDurationInput,
             flashSubmenuDelayInput, hapticDurationInput, defaultTimerInput
         )
         for (input in inputs) {
@@ -75,6 +77,13 @@ class SettingsActivity : AppCompatActivity() {
             val launchDelay = cameraLaunchDelayInput.text.toString().trim().toIntOrNull()
             if (launchDelay == null || launchDelay < 100 || launchDelay > 10000) {
                 Toast.makeText(this, "Camera launch delay must be between 100 and 10000 ms", Toast.LENGTH_SHORT).show()
+                return@setOnClickListener
+            }
+
+            // Validate Burst Count
+            val burstCount = burstCountInput.text.toString().trim().toIntOrNull()
+            if (burstCount == null || burstCount < 1 || burstCount > 50) {
+                Toast.makeText(this, "Burst photo count must be between 1 and 50", Toast.LENGTH_SHORT).show()
                 return@setOnClickListener
             }
 
@@ -116,6 +125,7 @@ class SettingsActivity : AppCompatActivity() {
             // All validation passed — save all settings
             settings.setAutoOpenCameraEnabled(autoOpenCameraSwitch.isChecked)
             settings.setCameraLaunchDelayMs(launchDelay)
+            settings.setBurstCount(burstCount)
             settings.setShutterFallbackEnabled(shutterFallbackSwitch.isChecked)
             settings.setShutterFallbackPosition(fallbackPos)
             settings.setGestureTapDurationMs(gestureDur)

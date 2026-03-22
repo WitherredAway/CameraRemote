@@ -66,6 +66,16 @@
 
     <View android:layout_width="match_parent" android:layout_height="1dp" android:layout_marginVertical="14dp" android:background="?colorOutlineVariant" android:alpha="0.3" />
 
+    <!-- Burst Photo Count -->
+    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Burst Photo Count" android:textSize="15sp" android:textColor="?colorOnSurface" />
+    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="2dp" android:text="How many photos to take in burst mode" android:textSize="12sp" android:textColor="?colorOutline" />
+    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="8dp" android:orientation="horizontal" android:gravity="center_vertical">
+        <EditText android:id="@+id/burstCountInput" android:layout_width="80dp" android:layout_height="wrap_content" android:inputType="number" android:textSize="16sp" android:textColor="?colorOnSurface" android:gravity="center" android:padding="10dp" android:background="@drawable/edit_text_bg" />
+        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginStart="12dp" android:text="photos per 500 ms" android:textSize="14sp" android:textColor="?colorOnSurfaceVariant" />
+    </LinearLayout>
+
+    <View android:layout_width="match_parent" android:layout_height="1dp" android:layout_marginVertical="14dp" android:background="?colorOutlineVariant" android:alpha="0.3" />
+
     <!-- Shutter Fallback -->
     <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:gravity="center_vertical">
         <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:orientation="vertical">

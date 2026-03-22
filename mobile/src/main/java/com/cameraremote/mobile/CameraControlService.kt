@@ -942,10 +942,10 @@ class CameraControlService : AccessibilityService() {
     }
 
     private fun burstCapture() {
-        val burstCount = 5
+        val burstCount = settings.getBurstCount()
         sendStatusToWatch("burst_$burstCount")
         for (i in 0 until burstCount) {
-            handler.postDelayed({ doCapture() }, i * 300L)
+            handler.postDelayed({ doCapture() }, i * 500L)
         }
     }
 

@@ -11,6 +11,7 @@ class SettingsManager(context: Context) {
         // Camera Control
         private const val KEY_AUTO_OPEN_CAMERA = "auto_open_camera"
         private const val KEY_CAMERA_LAUNCH_DELAY = "camera_launch_delay_ms"
+        private const val KEY_BURST_COUNT = "burst_count"
         private const val KEY_SHUTTER_FALLBACK_ENABLED = "shutter_fallback_enabled"
         private const val KEY_SHUTTER_FALLBACK_POSITION = "shutter_fallback_position"
         private const val KEY_GESTURE_TAP_DURATION = "gesture_tap_duration_ms"
@@ -39,6 +40,14 @@ class SettingsManager(context: Context) {
 
     fun setCameraLaunchDelayMs(delayMs: Int) {
         prefs.edit().putInt(KEY_CAMERA_LAUNCH_DELAY, delayMs).apply()
+    }
+
+    // --- Burst Photo Count ---
+
+    fun getBurstCount(): Int = prefs.getInt(KEY_BURST_COUNT, 20)
+
+    fun setBurstCount(count: Int) {
+        prefs.edit().putInt(KEY_BURST_COUNT, count).apply()
     }
 
     // --- Shutter Fallback ---
