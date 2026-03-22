@@ -17,7 +17,10 @@ import com.google.common.util.concurrent.ListenableFuture
 class CameraRemoteTileService : androidx.wear.tiles.TileService() {
 
     companion object {
-        private const val RESOURCES_VERSION = "3"
+        private const val RESOURCES_VERSION = "4"
+
+        // The actual class package differs from applicationId
+        private const val TILE_ACTION_CLASS = "com.cameraremote.wear.TileActionActivity"
 
         private const val COLOR_BG = 0xFF000000.toInt()
         private const val COLOR_LABEL = 0xFFCAC4D0.toInt()
@@ -82,15 +85,15 @@ class CameraRemoteTileService : androidx.wear.tiles.TileService() {
                     .addContent(title())
                     .addContent(spacer(8f))
                     .addContent(row(
-                        button("Camera", "open_camera", COLOR_CAMERA),
-                        button("Snap", "capture", COLOR_SHUTTER),
-                        button("Video", "open_video", COLOR_VIDEO)
+                        button("Camera", "open_camera", COLOR_CAMERA, "CAM"),
+                        button("Snap", "capture", COLOR_SHUTTER, "\u25CF"),
+                        button("Video", "open_video", COLOR_VIDEO, "REC")
                     ))
                     .addContent(spacer(6f))
                     .addContent(row(
-                        button("Flash", "toggle_flash", COLOR_FLASH),
-                        button("Flip", "switch_camera", COLOR_SWITCH),
-                        button("Timer", "capture_timer", COLOR_TIMER)
+                        button("Flash", "toggle_flash", COLOR_FLASH, "\u26A1"),
+                        button("Flip", "switch_camera", COLOR_SWITCH, "\u21C4"),
+                        button("Timer", "capture_timer", COLOR_TIMER, "3s")
                     ))
                     .build()
             )
@@ -128,13 +131,14 @@ class CameraRemoteTileService : androidx.wear.tiles.TileService() {
     private fun button(
         label: String,
         command: String,
-        bgColor: Int
+        bgColor: Int,
+        icon: String = label.first().toString()
     ): LayoutElementBuilders.LayoutElement {
         val action = ActionBuilders.LaunchAction.Builder()
             .setAndroidActivity(
                 ActionBuilders.AndroidActivity.Builder()
                     .setPackageName(packageName)
-                    .setClassName("$packageName.TileActionActivity")
+                    .setClassName(TILE_ACTION_CLASS)
                     .addKeyToExtraMapping(
                         "command",
                         ActionBuilders.AndroidStringExtra.Builder()
@@ -169,6 +173,18 @@ class CameraRemoteTileService : androidx.wear.tiles.TileService() {
                                             .setRadius(dp(22f))
                                             .build()
                                     )
+                                    .build()
+                            )
+                            .build()
+                    )
+                    .addContent(
+                        LayoutElementBuilders.Text.Builder()
+                            .setText(icon)
+                            .setFontStyle(
+                                LayoutElementBuilders.FontStyle.Builder()
+                                    .setSize(sp(14f))
+                                    .setColor(argb(0xFF000000.toInt()))
+                                    .setWeight(LayoutElementBuilders.FONT_WEIGHT_BOLD)
                                     .build()
                             )
                             .build()
