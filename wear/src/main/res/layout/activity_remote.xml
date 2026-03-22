@@ -46,6 +46,8 @@
             android:tint="#000000"
             android:scaleType="centerInside"
             android:padding="8dp"
+            android:clipToOutline="true"
+            android:outlineProvider="background"
             android:contentDescription="Open Camera" />
 
         <!-- Flash (pastel yellow) at ~7:30 o'clock — bottom-left -->
@@ -61,6 +63,8 @@
             android:tint="#000000"
             android:scaleType="centerInside"
             android:padding="8dp"
+            android:clipToOutline="true"
+            android:outlineProvider="background"
             android:contentDescription="Toggle Flash" />
 
         <!-- Flip (grey) at 6 o'clock — bottom middle -->
@@ -76,6 +80,8 @@
             android:tint="#000000"
             android:scaleType="centerInside"
             android:padding="8dp"
+            android:clipToOutline="true"
+            android:outlineProvider="background"
             android:contentDescription="Switch Camera" />
 
         <!-- Video (pastel purple) at ~4:30 o'clock — bottom-right -->
@@ -91,6 +97,8 @@
             android:tint="#000000"
             android:scaleType="centerInside"
             android:padding="8dp"
+            android:clipToOutline="true"
+            android:outlineProvider="background"
             android:contentDescription="Video Mode" />
 
         <!-- Timer (pastel red) at 3 o'clock — right middle -->
@@ -106,6 +114,8 @@
             android:tint="#000000"
             android:scaleType="centerInside"
             android:padding="8dp"
+            android:clipToOutline="true"
+            android:outlineProvider="background"
             android:contentDescription="Timer" />
 
         <!-- Shutter (white, large) at center -->
@@ -119,6 +129,8 @@
             android:tint="#000000"
             android:scaleType="centerInside"
             android:padding="14dp"
+            android:clipToOutline="true"
+            android:outlineProvider="background"
             android:contentDescription="Capture" />
 
 </FrameLayout>

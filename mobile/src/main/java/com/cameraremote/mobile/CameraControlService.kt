@@ -239,22 +239,29 @@ class CameraControlService : AccessibilityService() {
 
     private fun toggleFlash() {
         // Samsung camera (and many others) use icon-only flash buttons that don't
-        // expose useful text to accessibility. Use a two-step gesture approach:
-        // 1. Tap the flash icon area to open the submenu
-        // 2. After submenu opens, tap the "on" or "off" icon position
+        // expose useful text to accessibility. Strategy:
+        // 1. Try accessibility click on the main flash button to open submenu
+        // 2. After submenu opens, find submenu options by their node bounds
+        //    (leftmost = off, rightmost = on) — no hardcoded coords
         Log.d(TAG, "toggleFlash: flashOn=$flashOn")
 
         // First dump all visible nodes for debugging
         dumpVisibleNodes()
 
-        // Try accessibility-based approach first
+        // Try accessibility-based approach
         if (tryAccessibilityFlashToggle()) {
             return
         }
 
-        // Fallback: gesture-based tap at known flash positions
-        Log.d(TAG, "toggleFlash: accessibility failed, using gesture taps")
-        gestureFlashToggle()
+        // If accessibility matching totally failed, try findAndClickButton with flash descriptions
+        Log.d(TAG, "toggleFlash: specific flash matching failed, trying broad search")
+        if (findAndClickButton(flashDescriptions)) {
+            handler.postDelayed({ selectFlashSubmenuOption() }, settings.getFlashSubmenuDelayMs().toLong())
+            return
+        }
+
+        Log.d(TAG, "toggleFlash: no flash button found at all")
+        sendStatusToWatch("flash_not_found")
     }
 
     /**
@@ -296,28 +303,33 @@ class CameraControlService : AccessibilityService() {
     }
 
     /**
-     * After the flash submenu opens, try to click the on or off option.
+     * After the flash submenu opens, find and click the on or off option.
+     * Uses multiple strategies:
+     * 1. Exact match: contentDescription contains "flash on"/"flash off"
+     * 2. Broad match: contentDescription contains just "on"/"off" for top-area nodes
+     * 3. Position-based: find flash-related nodes in a horizontal row, pick leftmost (off) or rightmost (on)
      */
     private fun selectFlashSubmenuOption() {
+        // Dump nodes again so we can see the submenu in logcat
+        dumpVisibleNodes()
+
         val rootNode = rootInActiveWindow ?: run {
-            // No window, assume the click itself toggled flash
             flashOn = !flashOn
             sendStatusToWatch(if (flashOn) "flash_on" else "flash_off")
             return
         }
 
         val clickable = findClickableNodes(rootNode)
-        val targetDesc = if (flashOn) "off" else "on"
+        val wantOn = !flashOn  // If flash is currently off, we want to turn it on
 
+        // Strategy 1: Look for nodes with "flash on"/"flash off" in description
         for (node in clickable) {
             val contentDesc = node.contentDescription?.toString()?.lowercase() ?: ""
-            // Look for "Flash on" / "Flash off" in submenu
-            if (contentDesc.contains("flash") && contentDesc.contains(targetDesc)
-                && !contentDesc.contains("motion") && node.isVisibleToUser) {
-                val result = node.performAction(AccessibilityNodeInfo.ACTION_CLICK)
-                if (result) {
-                    flashOn = !flashOn
-                    Log.d(TAG, "Clicked flash submenu: '$contentDesc' -> flash ${if (flashOn) "on" else "off"}")
+            val targetPhrase = if (wantOn) "flash on" else "flash off"
+            if (contentDesc.contains(targetPhrase) && !contentDesc.contains("motion") && node.isVisibleToUser) {
+                if (node.performAction(AccessibilityNodeInfo.ACTION_CLICK)) {
+                    flashOn = wantOn
+                    Log.d(TAG, "Flash submenu (exact): clicked '$contentDesc'")
                     sendStatusToWatch(if (flashOn) "flash_on" else "flash_off")
                     recycleNodes(clickable)
                     rootNode.recycle()
@@ -326,61 +338,91 @@ class CameraControlService : AccessibilityService() {
             }
         }
 
-        // Couldn't find specific on/off, assume the first click toggled it
+        // Strategy 2: Find flash-related nodes in a horizontal row near the top.
+        // Collect all nodes whose description contains flash-related keywords,
+        // then sort by X position to determine off (left) / auto (middle) / on (right).
+        data class FlashNode(val node: AccessibilityNodeInfo, val desc: String, val left: Int)
+        val flashNodes = mutableListOf<FlashNode>()
+        val screenHeight = resources.displayMetrics.heightPixels
+
+        for (node in clickable) {
+            val contentDesc = node.contentDescription?.toString()?.lowercase() ?: ""
+            if (contentDesc.contains("motion") || !node.isVisibleToUser) continue
+
+            // Match nodes that look like flash options: contain "flash", "off", "on", or "auto"
+            val isFlashOption = contentDesc.contains("flash")
+                    || contentDesc == "off" || contentDesc == "on" || contentDesc == "auto"
+                    || contentDesc.contains("꺼짐") || contentDesc.contains("켜짐")  // Korean
+
+            if (isFlashOption) {
+                val bounds = android.graphics.Rect()
+                node.getBoundsInScreen(bounds)
+                // Only consider nodes in the top 25% of screen (flash submenu area)
+                if (bounds.top < screenHeight / 4) {
+                    flashNodes.add(FlashNode(node, contentDesc, bounds.left))
+                    Log.d(TAG, "Flash candidate: '$contentDesc' bounds=$bounds")
+                }
+            }
+        }
+
+        if (flashNodes.size >= 2) {
+            // Sort by X position: leftmost = off, rightmost = on
+            flashNodes.sortBy { it.left }
+            val target = if (wantOn) flashNodes.last() else flashNodes.first()
+            Log.d(TAG, "Flash submenu (position): picking '${target.desc}' (want ${if (wantOn) "on" else "off"})")
+            if (target.node.performAction(AccessibilityNodeInfo.ACTION_CLICK)) {
+                flashOn = wantOn
+                sendStatusToWatch(if (flashOn) "flash_on" else "flash_off")
+                recycleNodes(clickable)
+                rootNode.recycle()
+                return
+            }
+            // Try clicking parent if node itself didn't respond
+            val parent = target.node.parent
+            if (parent != null && parent.isClickable) {
+                if (parent.performAction(AccessibilityNodeInfo.ACTION_CLICK)) {
+                    flashOn = wantOn
+                    Log.d(TAG, "Flash submenu (position/parent): clicked parent of '${target.desc}'")
+                    sendStatusToWatch(if (flashOn) "flash_on" else "flash_off")
+                    parent.recycle()
+                    recycleNodes(clickable)
+                    rootNode.recycle()
+                    return
+                }
+                parent.recycle()
+            }
+        }
+
+        // Strategy 3: Try tapping the node at the position where on/off should be.
+        // Use the bounds of the flash nodes we found to tap using a gesture.
+        if (flashNodes.size >= 2) {
+            flashNodes.sortBy { it.left }
+            val target = if (wantOn) flashNodes.last() else flashNodes.first()
+            val bounds = android.graphics.Rect()
+            target.node.getBoundsInScreen(bounds)
+            val x = bounds.centerX().toFloat()
+            val y = bounds.centerY().toFloat()
+            Log.d(TAG, "Flash submenu (gesture at node bounds): tapping ($x, $y) for '${target.desc}'")
+            tapAtPosition(x, y) {
+                flashOn = wantOn
+                sendStatusToWatch(if (flashOn) "flash_on" else "flash_off")
+            }
+            recycleNodes(clickable)
+            rootNode.recycle()
+            return
+        }
+
+        // No submenu found, assume the first click toggled it
         flashOn = !flashOn
-        Log.d(TAG, "No submenu option found, assuming toggle -> flash ${if (flashOn) "on" else "off"}")
+        Log.d(TAG, "No flash submenu options found, assuming toggle -> flash ${if (flashOn) "on" else "off"}")
         sendStatusToWatch(if (flashOn) "flash_on" else "flash_off")
         recycleNodes(clickable)
         rootNode.recycle()
     }
 
     /**
-     * Gesture-based flash toggle. Taps the flash icon position on screen.
-     * Samsung camera layout: flash icons appear in a row near the top.
-     * Step 1: Tap the current flash indicator to open submenu.
-     * Step 2: Tap the "on" or "off" position in the submenu.
-     */
-    private fun gestureFlashToggle() {
-        val wm = getSystemService(Context.WINDOW_SERVICE) as WindowManager
-        val metrics = DisplayMetrics()
-        @Suppress("DEPRECATION")
-        wm.defaultDisplay.getMetrics(metrics)
-        val w = metrics.widthPixels.toFloat()
-        val h = metrics.heightPixels.toFloat()
-
-        // Samsung camera: flash button row is near the top of screen
-        // From the user's screenshot (Samsung A35):
-        // Flash off icon: ~23% from left, ~7% from top
-        // Flash auto icon: ~34% from left, ~7% from top
-        // Flash on icon:  ~44% from left, ~7% from top
-        val flashY = h * 0.07f
-
-        // Step 1: Tap the current flash indicator to open submenu
-        // The indicator shows the current state and is usually in the same row
-        val flashIndicatorX = w * 0.34f  // center of the row (auto position)
-        Log.d(TAG, "gestureFlash step1: tapping flash indicator at ($flashIndicatorX, $flashY)")
-
-        tapAtPosition(flashIndicatorX, flashY) {
-            // Step 2: After submenu opens, tap on or off
-            handler.postDelayed({
-                val targetX = if (flashOn) {
-                    w * 0.23f  // Flash off position (leftmost)
-                } else {
-                    w * 0.44f  // Flash on position (rightmost)
-                }
-                Log.d(TAG, "gestureFlash step2: tapping flash ${if (flashOn) "off" else "on"} at ($targetX, $flashY)")
-
-                tapAtPosition(targetX, flashY) {
-                    flashOn = !flashOn
-                    sendStatusToWatch(if (flashOn) "flash_on" else "flash_off")
-                    Log.d(TAG, "gestureFlash: toggled to ${if (flashOn) "on" else "off"}")
-                }
-            }, settings.getFlashSubmenuDelayMs().toLong())
-        }
-    }
-
-    /**
      * Tap a specific screen position using a gesture.
+     * Uses the node's own reported bounds — no hardcoded coordinates.
      */
     private fun tapAtPosition(x: Float, y: Float, onComplete: () -> Unit) {
         val path = Path().apply { moveTo(x, y) }
