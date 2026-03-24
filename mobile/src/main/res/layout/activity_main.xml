@@ -627,9 +627,9 @@
                 android:background="?colorOutlineVariant"
                 android:alpha="0.3" />
 
-            <!-- Collect Logs -->
+            <!-- Export Debug Logs -->
             <LinearLayout
-                android:id="@+id/collectLogsButton"
+                android:id="@+id/exportLogsButton"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:orientation="horizontal"
@@ -653,8 +653,8 @@
                         android:layout_width="20dp"
                         android:layout_height="20dp"
                         android:layout_gravity="center"
-                        android:src="@drawable/ic_bug_report"
-                        android:contentDescription="Logs" />
+                        android:src="@drawable/ic_save"
+                        android:contentDescription="Export Debug Logs" />
                 </FrameLayout>
 
                 <LinearLayout
@@ -667,7 +667,7 @@
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="Collect Logs"
+                        android:text="Export Debug Logs"
                         android:textSize="15sp"
                         android:textColor="?colorOnSurface" />
 
@@ -675,7 +675,7 @@
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:layout_marginTop="2dp"
-                        android:text="Share debug logs for troubleshooting"
+                        android:text="Save phone + watch logs for troubleshooting"
                         android:textSize="12sp"
                         android:textColor="?colorOutline" />
                 </LinearLayout>
@@ -684,7 +684,7 @@
                     android:layout_width="20dp"
                     android:layout_height="20dp"
                     android:src="@drawable/ic_chevron_right"
-                    android:contentDescription="Share" />
+                    android:contentDescription="Open" />
             </LinearLayout>
         </LinearLayout>
 
