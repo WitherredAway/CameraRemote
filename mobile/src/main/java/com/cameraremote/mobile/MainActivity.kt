@@ -48,7 +48,21 @@ class MainActivity : AppCompatActivity() {
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
-        binding.lastUpdatedText.text = "Last updated: ${BuildConfig.BUILD_TIMESTAMP}"
+        try {
+            val sdf = java.text.SimpleDateFormat("yyyy-MM-dd HH:mm z", java.util.Locale.US)
+            val buildDate = sdf.parse(BuildConfig.BUILD_TIMESTAMP)
+            if (buildDate != null) {
+                val relative = android.text.format.DateUtils.getRelativeTimeSpanString(
+                    buildDate.time, System.currentTimeMillis(),
+                    android.text.format.DateUtils.MINUTE_IN_MILLIS
+                )
+                binding.lastUpdatedText.text = "Last updated: $relative"
+            } else {
+                binding.lastUpdatedText.text = "Last updated: ${BuildConfig.BUILD_TIMESTAMP}"
+            }
+        } catch (_: Exception) {
+            binding.lastUpdatedText.text = "Last updated: ${BuildConfig.BUILD_TIMESTAMP}"
+        }
 
         // Show current version immediately
         try {
