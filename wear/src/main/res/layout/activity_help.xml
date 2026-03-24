@@ -411,7 +411,7 @@
                 android:layout_marginTop="6dp"
                 android:gravity="center"
                 android:textSize="8sp"
-                android:textColor="#808080" />
+                android:textColor="?colorOutline" />
 
     </LinearLayout>
 </ScrollView>
