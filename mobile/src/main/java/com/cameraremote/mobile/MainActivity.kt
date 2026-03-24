@@ -75,8 +75,8 @@ class MainActivity : AppCompatActivity() {
             openCamera()
         }
 
-        binding.collectLogsButton.setOnClickListener {
-            collectAndShareLogs()
+        binding.exportLogsButton.setOnClickListener {
+            exportDebugLogs()
         }
 
         binding.githubButton.setOnClickListener {
@@ -268,7 +268,7 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    private fun collectAndShareLogs() {
+    private fun exportDebugLogs() {
         Toast.makeText(this, "Collecting logcat logs...", Toast.LENGTH_SHORT).show()
         scope.launch {
             try {
