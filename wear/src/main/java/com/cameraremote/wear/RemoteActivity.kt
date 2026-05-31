@@ -13,7 +13,6 @@ import android.os.VibrationEffect
 import android.os.Vibrator
 import android.os.VibratorManager
 import android.util.Log
-import android.view.KeyEvent
 import android.view.MotionEvent
 import android.view.View
 import android.view.WindowManager
@@ -153,6 +152,19 @@ class RemoteActivity : AppCompatActivity(), MessageClient.OnMessageReceivedListe
 
         // Keep screen on while app is open
         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+
+        // Back button acts as shutter
+        onBackPressedDispatcher.addCallback(this, object : androidx.activity.OnBackPressedCallback(true) {
+            override fun handleOnBackPressed() {
+                vibrate()
+                if (isBursting) {
+                    isBursting = false
+                    sendCommand("cancel_burst")
+                } else {
+                    sendCommand("capture")
+                }
+            }
+        })
 
         loadSyncedSettings()
         setupButtons()
@@ -396,19 +408,6 @@ class RemoteActivity : AppCompatActivity(), MessageClient.OnMessageReceivedListe
         scopeJob.cancel()
     }
 
-    override fun onKeyDown(keyCode: Int, event: KeyEvent?): Boolean {
-        if (keyCode == KeyEvent.KEYCODE_BACK) {
-            vibrate()
-            if (isBursting) {
-                isBursting = false
-                sendCommand("cancel_burst")
-            } else {
-                sendCommand("capture")
-            }
-            return true
-        }
-        return super.onKeyDown(keyCode, event)
-    }
 
     private fun checkConnection() {
         scope.launch {
