@@ -8,12 +8,15 @@ import android.os.Bundle
 import android.os.CountDownTimer
 import android.os.Handler
 import android.os.Looper
+import android.os.PowerManager
 import android.os.VibrationEffect
 import android.os.Vibrator
 import android.os.VibratorManager
 import android.util.Log
+import android.view.KeyEvent
 import android.view.MotionEvent
 import android.view.View
+import android.view.WindowManager
 import android.widget.ImageButton
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.InputDeviceCompat
@@ -84,6 +87,7 @@ class RemoteActivity : AppCompatActivity(), MessageClient.OnMessageReceivedListe
     private var lastPreviewUri: String? = null
     private var isRecording = false
     private var isBursting = false
+    private var wakeLock: PowerManager.WakeLock? = null
     private var recordingStartTime = 0L
     private val recordingTimerHandler = Handler(Looper.getMainLooper())
     private val recordingTimerRunnable = object : Runnable {
@@ -138,6 +142,14 @@ class RemoteActivity : AppCompatActivity(), MessageClient.OnMessageReceivedListe
             null
         }
         Log.d(TAG, "MessageClient initialized: ${messageClient != null}")
+
+        wakeLock = try {
+            val pm = getSystemService(POWER_SERVICE) as PowerManager
+            pm.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "CameraRemote::CountdownWakeLock")
+        } catch (e: Exception) {
+            Log.w(TAG, "WakeLock not available", e)
+            null
+        }
 
         loadSyncedSettings()
         setupButtons()
@@ -203,10 +215,12 @@ class RemoteActivity : AppCompatActivity(), MessageClient.OnMessageReceivedListe
                 // Cancel active countdown
                 countdownTimer?.cancel()
                 isCountdownActive = false
+                releaseCountdownWakeLock()
                 binding.tvStatus.text = "Cancelled"
                 return@setOnClickListener
             }
             isCountdownActive = true
+            acquireCountdownWakeLock()
             val totalMs = timerSeconds * COUNTDOWN_TICK_MS
             countdownTimer = object : CountDownTimer(totalMs, COUNTDOWN_TICK_MS) {
                 override fun onTick(millisUntilFinished: Long) {
@@ -216,6 +230,7 @@ class RemoteActivity : AppCompatActivity(), MessageClient.OnMessageReceivedListe
                 }
                 override fun onFinish() {
                     isCountdownActive = false
+                    releaseCountdownWakeLock()
                     sendCommand("burst_capture")
                     runOnUiThread { binding.tvStatus.text = "Burst!" }
                     vibrate()
@@ -306,6 +321,7 @@ class RemoteActivity : AppCompatActivity(), MessageClient.OnMessageReceivedListe
     private fun startCountdown() {
         countdownTimer?.cancel()
         isCountdownActive = true
+        acquireCountdownWakeLock()
         binding.tvStatus.text = "$timerSeconds"
         countdownTimer = object : CountDownTimer(timerSeconds * COUNTDOWN_TICK_MS, COUNTDOWN_TICK_MS) {
             override fun onTick(millisUntilFinished: Long) {
@@ -317,6 +333,7 @@ class RemoteActivity : AppCompatActivity(), MessageClient.OnMessageReceivedListe
             }
             override fun onFinish() {
                 isCountdownActive = false
+                releaseCountdownWakeLock()
                 runOnUiThread {
                     binding.tvStatus.text = "Capturing..."
                 }
@@ -330,7 +347,28 @@ class RemoteActivity : AppCompatActivity(), MessageClient.OnMessageReceivedListe
         countdownTimer?.cancel()
         countdownTimer = null
         isCountdownActive = false
+        releaseCountdownWakeLock()
         binding.tvStatus.text = "Cancelled"
+    }
+
+    private fun acquireCountdownWakeLock() {
+        try {
+            wakeLock?.acquire(60_000L) // Safety timeout: 60s max
+            window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+            Log.d(TAG, "Countdown wake lock acquired")
+        } catch (e: Exception) {
+            Log.w(TAG, "Failed to acquire wake lock", e)
+        }
+    }
+
+    private fun releaseCountdownWakeLock() {
+        try {
+            if (wakeLock?.isHeld == true) wakeLock?.release()
+            window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+            Log.d(TAG, "Countdown wake lock released")
+        } catch (e: Exception) {
+            Log.w(TAG, "Failed to release wake lock", e)
+        }
     }
 
     override fun onResume() {
@@ -363,7 +401,22 @@ class RemoteActivity : AppCompatActivity(), MessageClient.OnMessageReceivedListe
         heartbeatHandler.removeCallbacks(heartbeatRunnable)
         recordingTimerHandler.removeCallbacks(recordingTimerRunnable)
         countdownTimer?.cancel()
+        releaseCountdownWakeLock()
         scopeJob.cancel()
+    }
+
+    override fun onKeyDown(keyCode: Int, event: KeyEvent?): Boolean {
+        if (keyCode == KeyEvent.KEYCODE_BACK) {
+            vibrate()
+            if (isBursting) {
+                isBursting = false
+                sendCommand("cancel_burst")
+            } else {
+                sendCommand("capture")
+            }
+            return true
+        }
+        return super.onKeyDown(keyCode, event)
     }
 
     private fun checkConnection() {
