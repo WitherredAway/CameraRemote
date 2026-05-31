@@ -145,11 +145,14 @@ class RemoteActivity : AppCompatActivity(), MessageClient.OnMessageReceivedListe
 
         wakeLock = try {
             val pm = getSystemService(POWER_SERVICE) as PowerManager
-            pm.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "CameraRemote::CountdownWakeLock")
+            pm.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "CameraRemote::WakeLock")
         } catch (e: Exception) {
             Log.w(TAG, "WakeLock not available", e)
             null
         }
+
+        // Keep screen on while app is open
+        window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
 
         loadSyncedSettings()
         setupButtons()
@@ -215,12 +218,10 @@ class RemoteActivity : AppCompatActivity(), MessageClient.OnMessageReceivedListe
                 // Cancel active countdown
                 countdownTimer?.cancel()
                 isCountdownActive = false
-                releaseCountdownWakeLock()
                 binding.tvStatus.text = "Cancelled"
                 return@setOnClickListener
             }
             isCountdownActive = true
-            acquireCountdownWakeLock()
             val totalMs = timerSeconds * COUNTDOWN_TICK_MS
             countdownTimer = object : CountDownTimer(totalMs, COUNTDOWN_TICK_MS) {
                 override fun onTick(millisUntilFinished: Long) {
@@ -230,7 +231,6 @@ class RemoteActivity : AppCompatActivity(), MessageClient.OnMessageReceivedListe
                 }
                 override fun onFinish() {
                     isCountdownActive = false
-                    releaseCountdownWakeLock()
                     sendCommand("burst_capture")
                     runOnUiThread { binding.tvStatus.text = "Burst!" }
                     vibrate()
@@ -321,7 +321,6 @@ class RemoteActivity : AppCompatActivity(), MessageClient.OnMessageReceivedListe
     private fun startCountdown() {
         countdownTimer?.cancel()
         isCountdownActive = true
-        acquireCountdownWakeLock()
         binding.tvStatus.text = "$timerSeconds"
         countdownTimer = object : CountDownTimer(timerSeconds * COUNTDOWN_TICK_MS, COUNTDOWN_TICK_MS) {
             override fun onTick(millisUntilFinished: Long) {
@@ -333,7 +332,6 @@ class RemoteActivity : AppCompatActivity(), MessageClient.OnMessageReceivedListe
             }
             override fun onFinish() {
                 isCountdownActive = false
-                releaseCountdownWakeLock()
                 runOnUiThread {
                     binding.tvStatus.text = "Capturing..."
                 }
@@ -347,33 +345,17 @@ class RemoteActivity : AppCompatActivity(), MessageClient.OnMessageReceivedListe
         countdownTimer?.cancel()
         countdownTimer = null
         isCountdownActive = false
-        releaseCountdownWakeLock()
         binding.tvStatus.text = "Cancelled"
-    }
-
-    private fun acquireCountdownWakeLock() {
-        try {
-            wakeLock?.acquire(60_000L) // Safety timeout: 60s max
-            window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
-            Log.d(TAG, "Countdown wake lock acquired")
-        } catch (e: Exception) {
-            Log.w(TAG, "Failed to acquire wake lock", e)
-        }
-    }
-
-    private fun releaseCountdownWakeLock() {
-        try {
-            if (wakeLock?.isHeld == true) wakeLock?.release()
-            window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
-            Log.d(TAG, "Countdown wake lock released")
-        } catch (e: Exception) {
-            Log.w(TAG, "Failed to release wake lock", e)
-        }
     }
 
     override fun onResume() {
         super.onResume()
         Log.d(TAG, "onResume")
+        try {
+            wakeLock?.acquire()
+        } catch (e: Exception) {
+            Log.w(TAG, "Failed to acquire wake lock", e)
+        }
         try {
             messageClient?.addListener(this)
             Wearable.getDataClient(this).addListener(this)
@@ -387,6 +369,11 @@ class RemoteActivity : AppCompatActivity(), MessageClient.OnMessageReceivedListe
     override fun onPause() {
         super.onPause()
         Log.d(TAG, "onPause")
+        try {
+            if (wakeLock?.isHeld == true) wakeLock?.release()
+        } catch (e: Exception) {
+            Log.w(TAG, "Failed to release wake lock", e)
+        }
         heartbeatHandler.removeCallbacks(heartbeatRunnable)
         try {
             messageClient?.removeListener(this)
@@ -401,7 +388,11 @@ class RemoteActivity : AppCompatActivity(), MessageClient.OnMessageReceivedListe
         heartbeatHandler.removeCallbacks(heartbeatRunnable)
         recordingTimerHandler.removeCallbacks(recordingTimerRunnable)
         countdownTimer?.cancel()
-        releaseCountdownWakeLock()
+        try {
+            if (wakeLock?.isHeld == true) wakeLock?.release()
+        } catch (e: Exception) {
+            Log.w(TAG, "Failed to release wake lock", e)
+        }
         scopeJob.cancel()
     }
 
