@@ -8,12 +8,15 @@ import android.os.Bundle
 import android.os.CountDownTimer
 import android.os.Handler
 import android.os.Looper
+import android.os.PowerManager
 import android.os.VibrationEffect
 import android.os.Vibrator
 import android.os.VibratorManager
 import android.util.Log
+import android.view.KeyEvent
 import android.view.MotionEvent
 import android.view.View
+import android.view.WindowManager
 import android.widget.ImageButton
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.InputDeviceCompat
@@ -84,6 +87,7 @@ class RemoteActivity : AppCompatActivity(), MessageClient.OnMessageReceivedListe
     private var lastPreviewUri: String? = null
     private var isRecording = false
     private var isBursting = false
+    private var wakeLock: PowerManager.WakeLock? = null
     private var recordingStartTime = 0L
     private val recordingTimerHandler = Handler(Looper.getMainLooper())
     private val recordingTimerRunnable = object : Runnable {
@@ -138,6 +142,17 @@ class RemoteActivity : AppCompatActivity(), MessageClient.OnMessageReceivedListe
             null
         }
         Log.d(TAG, "MessageClient initialized: ${messageClient != null}")
+
+        wakeLock = try {
+            val pm = getSystemService(POWER_SERVICE) as PowerManager
+            pm.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "CameraRemote::WakeLock")
+        } catch (e: Exception) {
+            Log.w(TAG, "WakeLock not available", e)
+            null
+        }
+
+        // Keep screen on while app is open
+        window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
 
         loadSyncedSettings()
         setupButtons()
@@ -337,6 +352,11 @@ class RemoteActivity : AppCompatActivity(), MessageClient.OnMessageReceivedListe
         super.onResume()
         Log.d(TAG, "onResume")
         try {
+            wakeLock?.acquire()
+        } catch (e: Exception) {
+            Log.w(TAG, "Failed to acquire wake lock", e)
+        }
+        try {
             messageClient?.addListener(this)
             Wearable.getDataClient(this).addListener(this)
         } catch (e: Exception) {
@@ -349,6 +369,11 @@ class RemoteActivity : AppCompatActivity(), MessageClient.OnMessageReceivedListe
     override fun onPause() {
         super.onPause()
         Log.d(TAG, "onPause")
+        try {
+            if (wakeLock?.isHeld == true) wakeLock?.release()
+        } catch (e: Exception) {
+            Log.w(TAG, "Failed to release wake lock", e)
+        }
         heartbeatHandler.removeCallbacks(heartbeatRunnable)
         try {
             messageClient?.removeListener(this)
@@ -363,7 +388,26 @@ class RemoteActivity : AppCompatActivity(), MessageClient.OnMessageReceivedListe
         heartbeatHandler.removeCallbacks(heartbeatRunnable)
         recordingTimerHandler.removeCallbacks(recordingTimerRunnable)
         countdownTimer?.cancel()
+        try {
+            if (wakeLock?.isHeld == true) wakeLock?.release()
+        } catch (e: Exception) {
+            Log.w(TAG, "Failed to release wake lock", e)
+        }
         scopeJob.cancel()
+    }
+
+    override fun onKeyDown(keyCode: Int, event: KeyEvent?): Boolean {
+        if (keyCode == KeyEvent.KEYCODE_BACK) {
+            vibrate()
+            if (isBursting) {
+                isBursting = false
+                sendCommand("cancel_burst")
+            } else {
+                sendCommand("capture")
+            }
+            return true
+        }
+        return super.onKeyDown(keyCode, event)
     }
 
     private fun checkConnection() {
